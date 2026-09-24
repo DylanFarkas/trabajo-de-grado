@@ -1,0 +1,57 @@
+{
+  "type": "FeatureCollection",
+  "name": "entradas",
+  "crs": {
+    "type": "name",
+    "properties": {
+      "name": "urn:ogc:def:crs:EPSG::6249"
+    }
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id_entrada": 1,
+        "edificio": "B13",
+        "name": "Entrada B13"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          1060879.257173,
+          865050.128169
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id_entrada": 2,
+        "edificio": "E23",
+        "name": "Entrada E23"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          1060540.598315,
+          865058.094862
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id_entrada": 3,
+        "edificio": "E26",
+        "name": "Entrada E26"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          1060555.270385,
+          865132.415006
+        ]
+      }
+    }
+  ]
+}

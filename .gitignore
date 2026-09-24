@@ -1,0 +1,8 @@
+.python-pkgs/
+.venv/
+.DS_Store
+*.qgs~
+*.qgz~
+*.gpkg-wal
+*.gpkg-shm
+.env

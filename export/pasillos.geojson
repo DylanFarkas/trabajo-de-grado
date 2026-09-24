@@ -1,0 +1,320 @@
+{
+  "type": "FeatureCollection",
+  "name": "pasillos",
+  "crs": {
+    "type": "name",
+    "properties": {
+      "name": "urn:ogc:def:crs:EPSG::6249"
+    }
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id_pasillo": 1,
+        "name": "Pasillo E20",
+        "edificio": "E20",
+        "highway": "footway",
+        "covered": "yes",
+        "tunnel": "building_passage",
+        "oneway": null,
+        "longitud_m": 66.03886488568969
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            1060435.4104681215,
+            865044.61464294
+          ],
+          [
+            1060435.4104681215,
+            864978.5757780543
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id_pasillo": 2,
+        "name": "Cruce Plazoleta de Ingeniería",
+        "edificio": null,
+        "highway": "pedestrian",
+        "covered": null,
+        "tunnel": null,
+        "oneway": null,
+        "longitud_m": 95.59911707012694
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            1060522.4594052231,
+            865054.9762965222
+          ],
+          [
+            1060534.4854177414,
+            865064.3988972981
+          ],
+          [
+            1060542.2656047076,
+            865067.1636906874
+          ],
+          [
+            1060551.1572484376,
+            865070.4814491614
+          ],
+          [
+            1060557.8260049038,
+            865074.9051938034
+          ],
+          [
+            1060563.3833106572,
+            865079.328952867
+          ],
+          [
+            1060568.94062957,
+            865084.8586695346
+          ],
+          [
+            1060573.3865114322,
+            865091.4943577036
+          ],
+          [
+            1060577.8324062736,
+            865099.2360033717
+          ],
+          [
+            1060581.1668640887,
+            865108.0836203549
+          ],
+          [
+            1060583.3898581108,
+            865115.825293923
+          ],
+          [
+            1060585.6239293378,
+            865120.5255847902
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id_pasillo": 3,
+        "name": "Conexión sur biblioteca",
+        "edificio": null,
+        "highway": "footway",
+        "covered": null,
+        "tunnel": null,
+        "oneway": null,
+        "longitud_m": 129.93694216571478
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            1060313.9634952527,
+            865128.1935838049
+          ],
+          [
+            1060443.8808162757,
+            865125.9355675149
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id_pasillo": 4,
+        "name": "Enlace nodo norte biblioteca",
+        "edificio": null,
+        "highway": "footway",
+        "covered": null,
+        "tunnel": null,
+        "oneway": null,
+        "longitud_m": 15.574504342402365
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            1060410.1446383852,
+            865126.5219161144
+          ],
+          [
+            1060410.4152887785,
+            865142.094068627
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id_pasillo": 5,
+        "name": "Enlace camino peatonal biblioteca",
+        "edificio": null,
+        "highway": "footway",
+        "covered": null,
+        "tunnel": null,
+        "oneway": null,
+        "longitud_m": 28.341936344992043
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            1060371.106189901,
+            865127.2004203502
+          ],
+          [
+            1060370.6136698148,
+            865098.8627637825
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id_pasillo": 6,
+        "name": "Extensión norte pasillo E20",
+        "edificio": "E20",
+        "highway": "footway",
+        "covered": null,
+        "tunnel": null,
+        "oneway": null,
+        "longitud_m": 81.4558405915036
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            1060436.8259902347,
+            865126.0581832831
+          ],
+          [
+            1060435.4104681215,
+            865044.61464294
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id_pasillo": 7,
+        "name": "Enlace sendero lenguas",
+        "edificio": null,
+        "highway": "footway",
+        "covered": null,
+        "tunnel": null,
+        "oneway": null,
+        "longitud_m": 12.455768219556449
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            1060268.1380709845,
+            865104.7037457078
+          ],
+          [
+            1060256.067678247,
+            865101.629370795
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id_pasillo": 8,
+        "name": "Enlace camino sur lenguas",
+        "edificio": null,
+        "highway": "footway",
+        "covered": null,
+        "tunnel": null,
+        "oneway": null,
+        "longitud_m": 26.05770020734863
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            1060234.4529360752,
+            865082.6257195327
+          ],
+          [
+            1060211.0312514845,
+            865071.2051927921
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id_pasillo": 9,
+        "name": "Enlace peatonal oeste lenguas",
+        "edificio": null,
+        "highway": "footway",
+        "covered": null,
+        "tunnel": null,
+        "oneway": null,
+        "longitud_m": 10.185905281454325
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            1060191.0591197463,
+            865111.0199760044
+          ],
+          [
+            1060191.0591197463,
+            865100.8340707229
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id_pasillo": 10,
+        "name": "Sendero B23",
+        "edificio": null,
+        "highway": "footway",
+        "covered": null,
+        "tunnel": null,
+        "oneway": null,
+        "longitud_m": 139.11378243146464
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            1060793.1753987314,
+            865056.4551083528
+          ],
+          [
+            1060794.9316598538,
+            865056.4551083528
+          ],
+          [
+            1060794.9316598538,
+            865112.9368285675
+          ],
+          [
+            1060714.0558587594,
+            865112.9368285675
+          ]
+        ]
+      }
+    }
+  ]
+}
