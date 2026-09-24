@@ -1,12 +1,12 @@
 {
   "expo": {
-    "name": "app",
-    "slug": "app",
+    "name": "Rutas Univalle",
+    "slug": "rutas-univalle",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "app",
-    "userInterfaceStyle": "automatic",
+    "scheme": "rutas-univalle",
+    "userInterfaceStyle": "light",
     "ios": {
       "icon": "./assets/expo.icon"
     },
@@ -25,6 +25,12 @@
     },
     "plugins": [
       "expo-router",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Permitir que Rutas Univalle use tu ubicación para situarte en el campus."
+        }
+      ],
       [
         "expo-splash-screen",
         {
