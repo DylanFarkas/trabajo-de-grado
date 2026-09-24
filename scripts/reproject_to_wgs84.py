@@ -52,7 +52,7 @@ def convert_file(src: Path, dst: Path, transformer: Transformer) -> None:
 
 def main() -> None:
     export_dir = ROOT / "export"
-    out_dir = ROOT / "mobile" / "assets" / "geojson"
+    out_dir = ROOT / "app" / "assets" / "geojson"
     src_crs = CRS.from_proj4(SRC_PROJ4)
     transformer = Transformer.from_crs(src_crs, "EPSG:4326", always_xy=True)
 
