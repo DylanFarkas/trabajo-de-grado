@@ -13,7 +13,8 @@ import {
   CAMPUS_ENTRANCES,
   type CampusEntrance,
 } from "@/constants/entrances";
-import { floorsOf, listCampusPlaces, placeInfo, searchCampusPlaces, type CampusPlace } from "@/places";
+import { floorsOf, catalogMapTone, listCampusPlaces, placeInfo, searchCampusPlaces, type CampusCatalog, type CampusPlace } from "@/places";
+import { readCachedCatalog, refreshCatalog } from "@/catalog";
 import {
   buildPlaceCatalog,
   findPlaceById,
@@ -69,6 +70,7 @@ const METERS_PER_FLOOR = 3.2;
 
 function withExtrusionHeight(
   collection: GeoJsonFeatureCollection,
+  catalog: CampusCatalog | null,
 ): GeoJsonFeatureCollection {
   return {
     ...collection,
@@ -76,14 +78,17 @@ function withExtrusionHeight(
       const props = (feature.properties ?? {}) as BuildingProperties;
       const floors = floorsOf(props);
       const height_m = Math.max(floors * METERS_PER_FLOOR, METERS_PER_FLOOR);
+      const code = props["addr:housenumber"] ? String(props["addr:housenumber"]) : null;
       const amenity = props.amenity ? String(props.amenity) : "";
       const label =
         props["addr:housenumber"] ||
         props["addr:housename"] ||
         props.name ||
         "";
+      const remoteTone = catalogMapTone(code, catalog);
       let tone = "stone";
-      if (amenity === "library") tone = "library";
+      if (remoteTone) tone = remoteTone;
+      else if (amenity === "library") tone = "library";
       else if (amenity === "restaurant" || amenity === "cafe") tone = "food";
       else if (amenity === "theatre") tone = "culture";
       else if (props.leisure || amenity === "sports_centre") tone = "sport";
@@ -549,6 +554,7 @@ export function CampusMap() {
   const [activeSlot, setActiveSlot] = useState<RouteSlot>("origin");
   const [view3d, setView3d] = useState(true);
   const [selected, setSelected] = useState<SelectedBuilding | null>(null);
+  const [catalog, setCatalog] = useState<CampusCatalog | null>(null);
   const [locating, setLocating] = useState(false);
   const [routing, setRouting] = useState(false);
   const [userLocation, setUserLocation] = useState<LatLng | null>(null);
@@ -610,21 +616,38 @@ export function CampusMap() {
   }, []);
 
   const html = useMemo(() => buildMapHtml(), []);
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const cached = await readCachedCatalog();
+      if (!cancelled && cached) setCatalog(cached);
+      try {
+        const fresh = await refreshCatalog();
+        if (!cancelled && fresh) setCatalog(fresh);
+      } catch {
+        // Sin red se queda el último catálogo guardado.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const buildings = useMemo(
-    () => withExtrusionHeight(edificios as unknown as GeoJsonFeatureCollection),
-    [],
+    () => withExtrusionHeight(edificios as unknown as GeoJsonFeatureCollection, catalog),
+    [catalog],
   );
   const paths = useMemo(() => aristasRed, []);
   const passages = useMemo(() => pasillos, []);
   const places = useMemo(
-    () => listCampusPlaces(edificios as unknown as GeoJsonFeatureCollection),
-    [],
+    () => listCampusPlaces(edificios as unknown as GeoJsonFeatureCollection, catalog),
+    [catalog],
   );
   const placeCatalog = useMemo(() => buildPlaceCatalog(places), [places]);
   const results = useMemo(() => searchCampusPlaces(places, query, 4), [places, query]);
   const selectedInfo = useMemo(
-    () => (selected ? placeInfo(selected.building) : null),
-    [selected],
+    () => (selected ? placeInfo(selected.building, catalog) : null),
+    [selected, catalog],
   );
 
   const inject = useCallback((code: string) => {
@@ -821,7 +844,7 @@ export function CampusMap() {
       const toward = slot === "destination" ? origin : destination;
       const snapped = pointForBuilding(building, point, toward);
       setSelected(null);
-      const name = label ?? placeInfo(building).title;
+      const name = label ?? placeInfo(building, catalog).title;
       const nextOrigin = slot === "origin" ? snapped : origin;
       const nextDestination = slot === "destination" ? snapped : destination;
       const nextOriginName = slot === "origin" ? name : originName;
@@ -846,7 +869,7 @@ export function CampusMap() {
       syncMarkers(nextOrigin, nextDestination);
       clearRouteLine();
     },
-    [origin, destination, originName, destinationName, runRoute, syncMarkers, clearRouteLine],
+    [origin, destination, originName, destinationName, runRoute, syncMarkers, clearRouteLine, catalog],
   );
 
   const clearSlot = useCallback(
@@ -1115,7 +1138,7 @@ export function CampusMap() {
       const originPlace = findPlaceById(places, intent.originPlaceId);
       let nextOrigin: LatLng | null = originPlace?.point ?? null;
       let nextOriginName: string | null = originPlace
-        ? placeInfo(originPlace.building).title
+        ? placeInfo(originPlace.building, catalog).title
         : null;
 
       if (!nextOrigin) {
@@ -1154,7 +1177,7 @@ export function CampusMap() {
         ? pointForBuilding(originPlace.building, nextOrigin, to)
         : snapCampusPoint(nextOrigin);
       const fromName = nextOriginName ?? "Origen";
-      const toName = placeInfo(destinationPlace.building).title;
+      const toName = placeInfo(destinationPlace.building, catalog).title;
 
       setSelected(null);
       setOrigin(from);
@@ -1183,7 +1206,7 @@ export function CampusMap() {
         setAssistantLoading(false);
       }
     }
-  }, [assistantLoading, routing, assistantPrompt, placeCatalog, places, runRoute]);
+  }, [assistantLoading, routing, assistantPrompt, placeCatalog, places, runRoute, catalog]);
 
   const openCampusPicker = useCallback(() => {
     setCampusPickerOpen(true);
