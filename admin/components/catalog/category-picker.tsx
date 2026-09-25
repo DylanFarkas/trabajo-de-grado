@@ -76,7 +76,7 @@ export function CategoryPicker({
         <Search className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-zinc-400" size={14} />
         <Input
           aria-label="Buscar categoría"
-          className="w-full pl-8"
+          className="w-full pl-8 border border-zinc-100 dark:border-[#141212] dark:bg-[#262626]"
           placeholder="Buscar categoría"
           value={query}
           onChange={(event) => setQuery(event.target.value)}

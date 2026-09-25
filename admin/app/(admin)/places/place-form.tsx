@@ -20,15 +20,15 @@ export function PlaceForm({
     <form action={updatePlace} className="mt-8 grid items-start gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
       <input type="hidden" name="id" value={place.id} />
 
-      <section className="grid gap-4 rounded-2xl bg-white p-6 dark:bg-zinc-900">
+      <section className="grid gap-4 rounded-2xl bg-[#ffffff] border border-zinc-200 dark:border-none p-6 dark:bg-[#171717]">
         <h2 className="text-lg font-semibold tracking-tight">Ficha</h2>
         <Field>
           Nombre
-          <Input name="name" defaultValue={place.name} required />
+          <Input name="name" className="dark:bg-[#262626] border border-zinc-100 dark:border-[#141212]" defaultValue={place.name} required />
         </Field>
         <Field>
           Tipo
-          <Select name="kind" defaultValue={place.kind}>
+          <Select name="kind" className="dark:bg-[#262626] border border-zinc-100 dark:border-[#141212]" defaultValue={place.kind}>
             {KINDS.map((kind) => (
               <option key={kind} value={kind}>
                 {KIND_LABELS[kind]}
@@ -38,7 +38,7 @@ export function PlaceForm({
         </Field>
         <Field>
           Descripción
-          <Textarea name="description" defaultValue={place.description ?? ""} />
+          <Textarea name="description" className="dark:bg-[#262626] border border-zinc-100 dark:border-[#141212]" defaultValue={place.description ?? ""} />
         </Field>
         <div className="mt-2 flex items-center gap-3">
           <Button size="lg" type="submit" className="cursor-pointer">
@@ -50,10 +50,10 @@ export function PlaceForm({
         </div>
       </section>
 
-      <section className="rounded-2xl bg-white p-6 dark:bg-zinc-900">
+      <section className="rounded-2xl bg-[#ffffff] border border-zinc-200 dark:border-none p-6 dark:bg-[#171717]">
         <h2 className="text-lg font-semibold tracking-tight">Categorías</h2>
         <p className="mt-1 mb-5 text-sm text-zinc-500 dark:text-zinc-400">
-          Busca por nombre o filtra por tono. Las asignadas quedan arriba.
+          Busca por nombre o filtra por tono.
         </p>
         <CategoryPicker categories={categories} selectedIds={[...selected]} />
       </section>

@@ -29,18 +29,18 @@ export function CategoryForm({
     >
       {editing ? <input type="hidden" name="id" value={category.id} /> : null}
 
-      <section className="grid gap-4 rounded-2xl bg-white p-6 dark:bg-zinc-900">
+      <section className="grid gap-4 rounded-2xl bg-[#ffffff] border border-zinc-200 dark:border-none p-6 dark:bg-[#171717]">
         <h2 className="text-lg font-semibold tracking-tight">Ficha</h2>
         {editing ? null : (
           <Field>
             Id
-            <Input name="id" placeholder="ej. cafeteria" required />
+            <Input name="id" className="dark:bg-[#262626] border border-zinc-100 dark:border-[#141212]" placeholder="ej. cafeteria" required />
             <span className="text-xs text-zinc-500 dark:text-zinc-400">Minúsculas, sin espacios. Después no se cambia.</span>
           </Field>
         )}
         <Field>
           Nombre
-          <Input name="name" defaultValue={category?.name ?? ""} required />
+          <Input name="name" className="dark:bg-[#262626] border border-zinc-100 dark:border-[#141212]" defaultValue={category?.name ?? ""} required />
         </Field>
         <Field>
           Tono
@@ -48,9 +48,9 @@ export function CategoryForm({
         </Field>
         <Field>
           Descripción
-          <Textarea name="description" defaultValue={category?.description ?? ""} />
+          <Textarea name="description" className="dark:bg-[#262626] border border-zinc-100 dark:border-[#141212]" defaultValue={category?.description ?? ""} />
         </Field>
-        <label className="flex items-start gap-3 rounded-xl bg-zinc-50 px-3 py-3 text-sm dark:bg-zinc-950">
+        <label className="flex items-start gap-3 rounded-xl bg-zinc-50 px-3 py-3 text-sm dark:bg-[#262626]">
           <input className="mt-0.5" type="checkbox" name="active" defaultChecked={category?.active ?? true} />
           <span>
             <span className="font-medium">Activa</span>
@@ -58,7 +58,7 @@ export function CategoryForm({
           </span>
         </label>
         <div className="mt-2 flex flex-wrap items-center gap-3">
-          <Button size="lg" type="submit">
+          <Button size="lg" type="submit" className="cursor-pointer">
             {editing ? "Guardar" : "Crear categoría"}
           </Button>
           <Link className={buttonClass("secondary", undefined, "lg")} href="/categories">
@@ -73,7 +73,7 @@ export function CategoryForm({
       </section>
 
       {editing ? (
-        <section className="rounded-2xl bg-white p-6 dark:bg-zinc-900">
+        <section className="rounded-2xl bg-[#ffffff] border border-zinc-200 dark:border-none p-6 dark:bg-[#171717]">
           <h2 className="text-lg font-semibold tracking-tight">Edificios</h2>
           <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
             {places.length === 0

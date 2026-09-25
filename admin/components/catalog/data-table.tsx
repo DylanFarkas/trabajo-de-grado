@@ -25,7 +25,7 @@ export function DataTable<T>({
   data,
   columns,
   searchPlaceholder = "Buscar",
-  pageSize = 15,
+  pageSize = 8,
   getRowHref,
   filterTabs,
   sortable = true,
@@ -101,7 +101,7 @@ export function DataTable<T>({
           <div />
         )}
         <Input
-          className="max-w-xs"
+          className="max-w-xs dark:border-[#141212] dark:bg-[#262626]"
           value={globalFilter}
           onChange={(event) => {
             setGlobalFilter(event.target.value);
@@ -238,7 +238,7 @@ function FilterTab({
       className={cn(
         "-mb-px border-b-2 px-3 py-2 text-sm transition-colors",
         active
-          ? "border-zinc-900 font-medium text-zinc-900 dark:border-zinc-100 dark:text-zinc-50"
+          ? "border-zinc-900 font-medium text-zinc-900 dark:border-zinc-100 dark:text-zinc-50 "
           : "border-transparent text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200",
       )}
       type="button"
