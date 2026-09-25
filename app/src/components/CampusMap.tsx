@@ -13,7 +13,7 @@ import {
   CAMPUS_ENTRANCES,
   type CampusEntrance,
 } from "@/constants/entrances";
-import { floorsOf, catalogMapTone, listCampusPlaces, placeInfo, searchCampusPlaces, type CampusCatalog, type CampusPlace } from "@/places";
+import { floorsOf, catalogMapTone, listCampusPlaces, placeInfo, searchCampusPlaces, type CampusCatalog, type CampusPlace, type PresetRoute } from "@/places";
 import { readCachedCatalog, refreshCatalog } from "@/catalog";
 import {
   buildPlaceCatalog,
@@ -32,6 +32,9 @@ import {
   formatDuration,
   pointInCampus,
   routeHybrid,
+  orderStopsFromOrigin,
+  pointLetter,
+  routeThroughPoints,
   type HybridRouteResult,
 } from "@/routing/hybridRoute";
 import type { StreetProfile } from "@/routing/openRouteService";
@@ -128,8 +131,8 @@ function buildMapHtml(): string {
       display: flex; align-items: center; justify-content: center;
       font: 800 12px system-ui, sans-serif; color: #fff;
     }
-    .route-marker.origin { background: #111111; }
-    .route-marker.dest { background: #2563eb; }
+    .route-marker.origin, .route-marker.stop { background: #111111; }
+    .route-marker.dest, .route-marker.stop-last { background: #2563eb; }
     .entrance-marker {
       width: 28px; height: 28px; border-radius: 14px;
       background: #111111; border: 2.5px solid #fff;
@@ -195,6 +198,7 @@ function buildMapHtml(): string {
 
     var originMarker = null;
     var destMarker = null;
+    var stopMarkers = [];
     var userMarker = null;
     var entranceMarkers = [];
     var selectedBuildingId = null;
@@ -252,11 +256,30 @@ function buildMapHtml(): string {
       }
     };
 
+    function clearStopMarkers() {
+      stopMarkers.forEach(function (marker) { marker.remove(); });
+      stopMarkers = [];
+    }
+
     window.setRouteEndpoints = function (origin, destination) {
+      clearStopMarkers();
       if (origin) setMarker('origin', origin.longitude, origin.latitude);
       else if (originMarker) { originMarker.remove(); originMarker = null; }
       if (destination) setMarker('dest', destination.longitude, destination.latitude);
       else if (destMarker) { destMarker.remove(); destMarker = null; }
+    };
+
+    window.setRouteStops = function (stops) {
+      clearStopMarkers();
+      if (originMarker) { originMarker.remove(); originMarker = null; }
+      if (destMarker) { destMarker.remove(); destMarker = null; }
+      (stops || []).forEach(function (stop, index, all) {
+        var kind = index === 0 ? 'origin' : index === all.length - 1 ? 'stop-last' : 'stop';
+        var marker = new maplibregl.Marker({ element: makeMarkerEl(kind, stop.letter) })
+          .setLngLat([stop.longitude, stop.latitude])
+          .addTo(map);
+        stopMarkers.push(marker);
+      });
     };
 
     window.setUserLocation = function (lng, lat, fly) {
@@ -287,6 +310,7 @@ function buildMapHtml(): string {
     window.clearRoute = function () {
       if (originMarker) { originMarker.remove(); originMarker = null; }
       if (destMarker) { destMarker.remove(); destMarker = null; }
+      clearStopMarkers();
       if (typeof window.setSelectedBuilding === 'function') window.setSelectedBuilding(null);
       window.clearRouteLine();
     };
@@ -555,6 +579,7 @@ export function CampusMap() {
   const [view3d, setView3d] = useState(true);
   const [selected, setSelected] = useState<SelectedBuilding | null>(null);
   const [catalog, setCatalog] = useState<CampusCatalog | null>(null);
+  const [preset, setPreset] = useState<{ name: string; stops: { letter: string; name: string }[] } | null>(null);
   const [locating, setLocating] = useState(false);
   const [routing, setRouting] = useState(false);
   const [userLocation, setUserLocation] = useState<LatLng | null>(null);
@@ -748,6 +773,7 @@ export function CampusMap() {
       }
 
       const requestId = ++routeRequestRef.current;
+      setPreset(null);
       setRouting(true);
       setRouteError(null);
       setStatus(
@@ -791,6 +817,91 @@ export function CampusMap() {
     [syncMarkers, paintRoute, clearRouteLine],
   );
 
+  const runPreset = useCallback(
+    (presetRoute: PresetRoute) => {
+      if (!origin) {
+        setPreset(null);
+        setRouteError("Elige primero desde dónde sales");
+        activeSlotRef.current = "origin";
+        setActiveSlot("origin");
+        return;
+      }
+
+      const resolved = presetRoute.stops.flatMap((code) => {
+        const place = places.find((item) => item.code === code);
+        if (!place) return [];
+        return [{ name: place.title, point: place.point }];
+      });
+      const missing = presetRoute.stops.find(
+        (code) => !places.some((item) => item.code === code),
+      );
+      if (missing || resolved.length < 2) {
+        const label = missing ? (catalog?.places[missing]?.name ?? missing) : null;
+        setPreset(null);
+        setRoute(null);
+        setRouteError(
+          label ? `${label} no está en el mapa` : "La ruta necesita al menos dos sitios",
+        );
+        clearRouteLine();
+        return;
+      }
+
+      const ordered = orderStopsFromOrigin(origin, resolved);
+      if (!ordered) {
+        setRoute(null);
+        setRouteError("No hay camino entre esos sitios");
+        clearRouteLine();
+        return;
+      }
+
+      const result = routeThroughPoints(
+        ordered.map((stop) => stop.point),
+        origin,
+      );
+      const labeled = [
+        { letter: pointLetter(0), name: originName ?? "Origen", point: origin },
+        ...ordered.map((stop, index) => ({
+          letter: pointLetter(index + 1),
+          name: stop.name,
+          point: stop.point,
+        })),
+      ];
+      const last = labeled[labeled.length - 1];
+      setSelected(null);
+      setQuery("");
+      setDestination(last.point);
+      setDestinationName(last.name);
+      setPreset({ name: presetRoute.name, stops: labeled.map(({ letter, name }) => ({ letter, name })) });
+      activeSlotRef.current = "destination";
+      setActiveSlot("destination");
+
+      if (!result) {
+        setRoute(null);
+        setRouteError("No hay camino entre esos sitios");
+        clearRouteLine();
+        return;
+      }
+
+      setRoute(result);
+      setRouteError(null);
+      setStatus("");
+      const payload = JSON.stringify({
+        coordinates: result.coordinates,
+        stops: labeled.map((stop) => ({
+          letter: stop.letter,
+          longitude: stop.point.longitude,
+          latitude: stop.point.latitude,
+        })),
+      });
+      inject(`
+        var data = ${payload};
+        if (typeof window.setRouteStops === 'function') window.setRouteStops(data.stops);
+        if (typeof window.setRouteLine === 'function') window.setRouteLine(data.coordinates);
+      `);
+    },
+    [origin, originName, places, catalog, clearRouteLine, inject],
+  );
+
   const syncEntranceMarkers = useCallback(
     (items: CampusEntrance[] | null) => {
       const payload = JSON.stringify(
@@ -819,6 +930,7 @@ export function CampusMap() {
     setDestination(null);
     setOriginName(null);
     setDestinationName(null);
+    setPreset(null);
     setRoute(null);
     setRouteError(null);
     setAssistantError(null);
@@ -1335,6 +1447,8 @@ export function CampusMap() {
         onLocate={locateMe}
         onOpenAssistant={openAssistant}
         assistantActive={assistantOpen || mockLocationActive}
+        presetRoutes={catalog?.routes ?? []}
+        onSelectPreset={runPreset}
       />
 
       <AssistantSheet
@@ -1406,6 +1520,8 @@ export function CampusMap() {
         routing={routing}
         streetProfile={streetProfile}
         onStreetProfileChange={setStreetProfile}
+        presetName={preset?.name ?? null}
+        presetStops={preset?.stops ?? null}
       />
     </View>
   );

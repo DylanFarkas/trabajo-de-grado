@@ -43,9 +43,9 @@ where email = '${profile.email ?? ""}';`}</pre>
         <section>
           <h1 className="text-2xl font-semibold">Hola{profile.full_name ? `, ${profile.full_name}` : ""}</h1>
           <p className="mt-2 text-zinc-600">
-            Edita fichas de edificios, categorías y a qué lugar pertenece cada una.
+            Edita fichas de edificios, categorías y rutas con sus sitios.
           </p>
-          <div className="mt-6 grid gap-4 sm:grid-cols-2">
+          <div className="mt-6 grid gap-4 sm:grid-cols-3">
             <Link className="rounded-xl border border-zinc-200 bg-white p-5" href="/places">
               <p className="text-lg font-semibold">Edificios</p>
               <p className="mt-1 text-sm text-zinc-600">Lista y fichas. Ahí se asignan las categorías.</p>
@@ -53,6 +53,10 @@ where email = '${profile.email ?? ""}';`}</pre>
             <Link className="rounded-xl border border-zinc-200 bg-white p-5" href="/categories">
               <p className="text-lg font-semibold">Categorías</p>
               <p className="mt-1 text-sm text-zinc-600">Crear, editar y borrar.</p>
+            </Link>
+            <Link className="rounded-xl border border-zinc-200 bg-white p-5" href="/routes">
+              <p className="text-lg font-semibold">Rutas</p>
+              <p className="mt-1 text-sm text-zinc-600">Nombre y sitios en orden. Publicar las muestra en la app.</p>
             </Link>
           </div>
         </section>

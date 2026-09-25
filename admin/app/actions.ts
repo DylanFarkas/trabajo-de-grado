@@ -130,3 +130,84 @@ export async function deleteCategory(formData: FormData) {
   revalidatePath("/categories");
   revalidatePath("/places");
 }
+
+function routeFields(formData: FormData) {
+  const name = String(formData.get("name") ?? "").trim();
+  const description = String(formData.get("description") ?? "").trim();
+  const published = formData.get("published") === "on";
+  const placeIds: string[] = [];
+  for (const value of formData.getAll("place_id")) {
+    const placeId = String(value);
+    if (placeId && !placeIds.includes(placeId)) placeIds.push(placeId);
+  }
+  if (!name) throw new Error("La ruta necesita un nombre.");
+  if (published && placeIds.length < 2) {
+    throw new Error("Para publicar hacen falta al menos dos sitios distintos.");
+  }
+  return { name, description: description || null, published, placeIds };
+}
+
+async function replaceStops(
+  supabase: Awaited<ReturnType<typeof adminClient>>,
+  routeId: number,
+  placeIds: string[],
+) {
+  const { error: deleteError } = await supabase.from("route_stops").delete().eq("route_id", routeId);
+  if (deleteError) throw new Error(deleteError.message);
+  if (placeIds.length === 0) return;
+  const { error: insertError } = await supabase.from("route_stops").insert(
+    placeIds.map((placeId, position) => ({
+      route_id: routeId,
+      place_id: placeId,
+      position,
+    })),
+  );
+  if (insertError) throw new Error(insertError.message);
+}
+
+export async function saveRoute(formData: FormData) {
+  const supabase = await adminClient();
+  const fields = routeFields(formData);
+  const rawId = String(formData.get("id") ?? "").trim();
+  let routeId = Number(rawId);
+
+  if (!rawId) {
+    const { data, error } = await supabase
+      .from("routes")
+      .insert({
+        name: fields.name,
+        description: fields.description,
+        published: fields.published,
+      })
+      .select("id")
+      .single();
+    if (error) throw new Error(error.message);
+    routeId = data.id;
+  } else {
+    if (!Number.isFinite(routeId)) throw new Error("La ruta no existe.");
+    const { error } = await supabase
+      .from("routes")
+      .update({
+        name: fields.name,
+        description: fields.description,
+        published: fields.published,
+      })
+      .eq("id", routeId);
+    if (error) throw new Error(error.message);
+  }
+
+  await replaceStops(supabase, routeId, fields.placeIds);
+  revalidatePath("/routes");
+  revalidatePath(`/routes/${routeId}`);
+  redirect(`/routes/${routeId}`);
+}
+
+export async function deleteRoute(formData: FormData) {
+  const supabase = await adminClient();
+  const routeId = Number(formData.get("id"));
+  if (!Number.isFinite(routeId)) throw new Error("La ruta no existe.");
+  const { error } = await supabase.from("routes").delete().eq("id", routeId);
+  if (error) throw new Error(error.message);
+  revalidatePath("/routes");
+  redirect("/routes");
+}

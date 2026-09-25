@@ -40,10 +40,18 @@ export type CategoryRecord = {
   sortOrder: number;
 };
 
+export type PresetRoute = {
+  id: number;
+  name: string;
+  description: string | null;
+  stops: string[];
+};
+
 export type CampusCatalog = {
   places: Record<string, PlaceRecord>;
   categories: Record<string, CategoryRecord>;
   assignments: Record<string, string[]>;
+  routes: PresetRoute[];
 };
 
 const MAP_TONES = new Set<CatalogTone>(["food", "sport", "library", "culture"]);

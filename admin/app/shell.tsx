@@ -33,6 +33,7 @@ export async function Shell({
           <nav className="mx-auto flex max-w-5xl gap-4 px-6 pb-3 text-sm">
             <Link href="/places">Edificios</Link>
             <Link href="/categories">Categorías</Link>
+            <Link href="/routes">Rutas</Link>
           </nav>
         ) : null}
       </header>
