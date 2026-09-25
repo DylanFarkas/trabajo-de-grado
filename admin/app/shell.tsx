@@ -11,7 +11,7 @@ export async function Shell({
   const profile = await getSessionProfile();
 
   return (
-    <div className="min-h-full bg-zinc-50 text-zinc-950">
+    <div className="flex min-h-screen flex-col bg-zinc-50 text-zinc-950">
       <header className="border-b border-zinc-200 bg-white">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-6 py-4">
           <div>

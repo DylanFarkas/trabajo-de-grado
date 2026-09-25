@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { GoogleButton } from "@/app/google-button";
 import { Shell } from "@/app/shell";
 import { getSessionProfile } from "@/lib/auth";
@@ -43,6 +45,16 @@ where email = '${profile.email ?? ""}';`}</pre>
           <p className="mt-2 text-zinc-600">
             Edita fichas de edificios, categorías y a qué lugar pertenece cada una.
           </p>
+          <div className="mt-6 grid gap-4 sm:grid-cols-2">
+            <Link className="rounded-xl border border-zinc-200 bg-white p-5" href="/places">
+              <p className="text-lg font-semibold">Edificios</p>
+              <p className="mt-1 text-sm text-zinc-600">Lista y fichas. Ahí se asignan las categorías.</p>
+            </Link>
+            <Link className="rounded-xl border border-zinc-200 bg-white p-5" href="/categories">
+              <p className="text-lg font-semibold">Categorías</p>
+              <p className="mt-1 text-sm text-zinc-600">Crear, editar y borrar.</p>
+            </Link>
+          </div>
         </section>
       )}
     </Shell>
