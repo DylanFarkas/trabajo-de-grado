@@ -56,7 +56,7 @@ where email = '${profile.email ?? ""}';`}</pre>
             </Link>
             <Link className="rounded-xl border border-zinc-200 bg-white p-5" href="/routes">
               <p className="text-lg font-semibold">Rutas</p>
-              <p className="mt-1 text-sm text-zinc-600">Nombre y sitios en orden. Publicar las muestra en la app.</p>
+              <p className="mt-1 text-sm text-zinc-600">Nombre y sitios. Publicar las muestra en la app.</p>
             </Link>
           </div>
         </section>
