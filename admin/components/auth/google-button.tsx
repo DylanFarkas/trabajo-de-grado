@@ -1,5 +1,6 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 
 export function GoogleButton() {
@@ -16,12 +17,8 @@ export function GoogleButton() {
   }
 
   return (
-    <button
-      className="rounded-full bg-zinc-950 px-5 py-2.5 text-sm text-white"
-      type="button"
-      onClick={signIn}
-    >
+    <Button size="lg" type="button" onClick={signIn}>
       Continuar con Google
-    </button>
+    </Button>
   );
 }

@@ -1,4 +1,6 @@
+@import url("https://fonts.googleapis.com/css2?family=Google+Sans+Flex:opsz,wght@6..144,1..1000&family=Manrope:wght@200..800&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&family=Roboto:ital,wght@0,100..900;1,100..900&display=swap");
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 
 :root {
   --background: #ffffff;
@@ -8,12 +10,9 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: "Google Sans Flex", "Plus Jakarta Sans", Manrope, Roboto, sans-serif;
 }
 
 body {
-  background: #fafafa;
-  color: #09090b;
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: "Google Sans Flex", "Plus Jakarta Sans", Manrope, Roboto, sans-serif;
 }

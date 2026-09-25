@@ -1,3 +1,5 @@
+import { redirect } from "next/navigation";
+
 import { createClient } from "@/lib/supabase/server";
 
 export type Profile = {
@@ -20,4 +22,10 @@ export async function getSessionProfile(): Promise<Profile | null> {
     .maybeSingle();
 
   return (profile as Profile | null) ?? null;
+}
+
+export async function requireAdmin() {
+  const profile = await getSessionProfile();
+  if (!profile || profile.role !== "admin") redirect("/");
+  return profile;
 }

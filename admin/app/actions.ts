@@ -4,10 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { getSessionProfile } from "@/lib/auth";
+import { isKind, isTone } from "@/lib/catalog";
 import { createClient } from "@/lib/supabase/server";
-
-const TONES = ["food", "sport", "library", "culture", "academic"] as const;
-const KINDS = ["building", "space"] as const;
 
 async function adminClient() {
   const profile = await getSessionProfile();
@@ -29,7 +27,7 @@ export async function updatePlace(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
   const kind = String(formData.get("kind") ?? "");
-  if (!id || !name || !KINDS.includes(kind as (typeof KINDS)[number])) {
+  if (!id || !name || !isKind(kind)) {
     throw new Error("La ficha necesita código, nombre y tipo.");
   }
 
@@ -81,7 +79,7 @@ export async function createCategory(formData: FormData) {
   const description = String(formData.get("description") ?? "").trim();
   const tone = String(formData.get("tone") ?? "");
   const sortOrder = Number(formData.get("sort_order") ?? 0);
-  if (!/^[a-z0-9_]+$/.test(id) || !name || !TONES.includes(tone as (typeof TONES)[number])) {
+  if (!/^[a-z0-9_]+$/.test(id) || !name || !isTone(tone)) {
     throw new Error("El id va en minúsculas (comida). Elige un tono válido.");
   }
 
@@ -104,7 +102,7 @@ export async function updateCategory(formData: FormData) {
   const description = String(formData.get("description") ?? "").trim();
   const tone = String(formData.get("tone") ?? "");
   const sortOrder = Number(formData.get("sort_order") ?? 0);
-  if (!id || !name || !TONES.includes(tone as (typeof TONES)[number])) {
+  if (!id || !name || !isTone(tone)) {
     throw new Error("La categoría necesita nombre y tono.");
   }
 

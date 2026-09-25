@@ -4,16 +4,16 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import { deleteRoute, saveRoute } from "@/app/actions";
+import { Button, buttonClass } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Field } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { kindLabel } from "@/lib/catalog";
 
 export type RoutePlace = {
   id: string;
   name: string;
   kind: string;
-};
-
-const KIND_LABEL: Record<string, string> = {
-  building: "Edificio",
-  space: "Espacio",
 };
 
 export function RouteForm({
@@ -48,68 +48,60 @@ export function RouteForm({
         <input key={placeId} type="hidden" name="place_id" value={placeId} />
       ))}
 
-      <div className="grid gap-3 rounded-xl border border-zinc-200 bg-white p-4">
-        <label className="grid gap-1 text-sm">
+      <Card className="grid gap-3">
+        <Field>
           Nombre
-          <input
-            className="rounded-lg border border-zinc-300 px-3 py-2"
-            name="name"
-            defaultValue={name}
-            required
-          />
-        </label>
-        <label className="grid gap-1 text-sm">
+          <Input name="name" defaultValue={name} required />
+        </Field>
+        <Field>
           Descripción
-          <input
-            className="rounded-lg border border-zinc-300 px-3 py-2"
-            name="description"
-            defaultValue={description}
-          />
-        </label>
+          <Input name="description" defaultValue={description} />
+        </Field>
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" name="published" defaultChecked={published} />
           Publicada. La app solo muestra rutas publicadas, y hacen falta al menos dos sitios.
         </label>
-      </div>
+      </Card>
 
-      <section className="rounded-xl border border-zinc-200 bg-white p-4">
+      <Card>
         <h2 className="font-semibold">Sitios de la ruta</h2>
-        <p className="mt-1 text-sm text-zinc-600">
+        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
           La app los recorre desde el origen, en el orden que menos camino implique.
         </p>
         {selected.length === 0 ? (
-          <p className="mt-3 text-sm text-zinc-600">Todavía no hay sitios.</p>
+          <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">Todavía no hay sitios.</p>
         ) : (
           <ul className="mt-3 grid gap-2">
             {selected.map((placeId) => {
               const place = byId.get(placeId);
               return (
-                <li key={placeId} className="flex items-center justify-between gap-3 rounded-lg border border-zinc-200 px-3 py-2">
+                <li key={placeId} className="flex items-center justify-between gap-3 rounded-lg border border-zinc-200 px-3 py-2 dark:border-zinc-700">
                   <div>
                     <p className="text-sm font-medium">{place?.name ?? placeId}</p>
-                    <p className="text-xs text-zinc-500">
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">
                       {placeId}
-                      {place ? ` · ${KIND_LABEL[place.kind] ?? place.kind}` : ""}
+                      {place ? ` · ${kindLabel(place.kind)}` : ""}
                     </p>
                   </div>
-                  <button
-                    className="rounded-full border border-zinc-300 px-3 py-1 text-sm text-red-700"
+                  <Button
+                    className="rounded-full border border-zinc-300 px-3 py-1 dark:border-zinc-600"
+                    variant="danger"
                     type="button"
                     onClick={() => setSelected(selected.filter((id) => id !== placeId))}
                   >
                     Quitar
-                  </button>
+                  </Button>
                 </li>
               );
             })}
           </ul>
         )}
-      </section>
+      </Card>
 
-      <section className="rounded-xl border border-zinc-200 bg-white p-4">
+      <Card>
         <h2 className="font-semibold">Agregar edificio o espacio</h2>
-        <input
-          className="mt-3 w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm"
+        <Input
+          className="mt-3 w-full dark:bg-zinc-950"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           onKeyDown={(event) => {
@@ -117,38 +109,37 @@ export function RouteForm({
           }}
           placeholder="Código o nombre"
         />
-        <ul className="mt-3 max-h-72 divide-y divide-zinc-200 overflow-y-auto rounded-lg border border-zinc-200">
+        <ul className="mt-3 max-h-72 divide-y divide-zinc-200 overflow-y-auto rounded-lg border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-700">
           {available.slice(0, 30).map((place) => (
             <li key={place.id} className="flex items-center justify-between gap-3 px-3 py-2">
               <div>
                 <p className="text-sm font-medium">{place.name}</p>
-                <p className="text-xs text-zinc-500">
-                  {place.id} · {KIND_LABEL[place.kind] ?? place.kind}
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                  {place.id} · {kindLabel(place.kind)}
                 </p>
               </div>
-              <button
-                className="rounded-full border border-zinc-300 px-3 py-1 text-sm"
+              <Button
+                size="sm"
+                variant="secondary"
                 type="button"
                 onClick={() => setSelected([...selected, place.id])}
               >
                 Agregar
-              </button>
+              </Button>
             </li>
           ))}
         </ul>
-      </section>
+      </Card>
 
       <div className="flex items-center gap-4">
-        <button className="rounded-full bg-zinc-950 px-4 py-2 text-sm text-white" type="submit">
-          Guardar
-        </button>
-        <Link className="rounded-full border border-zinc-300 px-4 py-2 text-sm" href="/routes">
+        <Button type="submit">Guardar</Button>
+        <Link className={buttonClass("secondary")} href="/routes">
           Cancelar
         </Link>
         {routeId != null ? (
-          <button className="text-sm text-red-700" formAction={deleteRoute} type="submit">
+          <Button variant="danger" formAction={deleteRoute} type="submit">
             Borrar ruta
-          </button>
+          </Button>
         ) : null}
       </div>
     </form>

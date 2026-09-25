@@ -1,8 +1,8 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 
-import { RouteForm } from "@/app/routes/route-form";
-import { Shell } from "@/app/shell";
-import { getSessionProfile } from "@/lib/auth";
+import { RouteForm } from "@/app/(admin)/routes/route-form";
+import { QueryError } from "@/components/catalog/query-error";
+import { PageHeader } from "@/components/layout/page-header";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function RoutePage({
@@ -10,9 +10,6 @@ export default async function RoutePage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const profile = await getSessionProfile();
-  if (!profile || profile.role !== "admin") redirect("/");
-
   const { id } = await params;
   const routeId = Number(id);
   if (!Number.isFinite(routeId)) notFound();
@@ -24,20 +21,16 @@ export default async function RoutePage({
   ]);
 
   if (error) {
-    return (
-      <Shell>
-        <p className="text-sm text-red-700">{error.message}</p>
-      </Shell>
-    );
+    return <QueryError message={error.message} />;
   }
   if (!route) notFound();
 
   const stops = [...(route.route_stops ?? [])].sort((a, b) => a.position - b.position);
 
   return (
-    <Shell>
-      <h1 className="text-2xl font-semibold">{route.name}</h1>
-      {placesError ? <p className="mt-4 text-sm text-red-700">{placesError.message}</p> : null}
+    <>
+      <PageHeader title={route.name} />
+      <QueryError message={placesError?.message} />
       <RouteForm
         routeId={route.id}
         name={route.name}
@@ -46,6 +39,6 @@ export default async function RoutePage({
         stopIds={stops.map((stop) => stop.place_id)}
         places={places ?? []}
       />
-    </Shell>
+    </>
   );
 }
