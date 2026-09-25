@@ -1,8 +1,11 @@
+import Link from "next/link";
+
 import { updatePlace } from "@/app/actions";
-import { Button } from "@/components/ui/button";
+import { CategoryPicker } from "@/components/catalog/category-picker";
+import { Button, buttonClass } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input, Select, Textarea } from "@/components/ui/input";
-import { KIND_LABELS, KINDS, toneLabel } from "@/lib/catalog";
+import { KIND_LABELS, KINDS } from "@/lib/catalog";
 
 export function PlaceForm({
   place,
@@ -14,39 +17,46 @@ export function PlaceForm({
   selected: Set<string>;
 }) {
   return (
-    <form action={updatePlace} className="mt-6 grid max-w-xl gap-4">
+    <form action={updatePlace} className="mt-8 grid items-start gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
       <input type="hidden" name="id" value={place.id} />
-      <Field>
-        Nombre
-        <Input name="name" defaultValue={place.name} required />
-      </Field>
-      <Field>
-        Descripción
-        <Textarea name="description" defaultValue={place.description ?? ""} />
-      </Field>
-      <Field>
-        Tipo
-        <Select name="kind" defaultValue={place.kind}>
-          {KINDS.map((kind) => (
-            <option key={kind} value={kind}>
-              {KIND_LABELS[kind]}
-            </option>
-          ))}
-        </Select>
-      </Field>
-      <fieldset className="grid gap-2">
-        <legend className="text-sm font-medium">Categorías</legend>
-        {categories.map((category) => (
-          <label key={category.id} className="flex items-center gap-2 text-sm">
-            <input type="checkbox" name="category_id" value={category.id} defaultChecked={selected.has(category.id)} />
-            <span>{category.name}</span>
-            <span className="text-zinc-500 dark:text-zinc-400">{toneLabel(category.tone)}</span>
-          </label>
-        ))}
-      </fieldset>
-      <Button className="w-fit" size="lg" type="submit">
-        Guardar ficha
-      </Button>
+
+      <section className="grid gap-4 rounded-2xl bg-white p-6 dark:bg-zinc-900">
+        <h2 className="text-lg font-semibold tracking-tight">Ficha</h2>
+        <Field>
+          Nombre
+          <Input name="name" defaultValue={place.name} required />
+        </Field>
+        <Field>
+          Tipo
+          <Select name="kind" defaultValue={place.kind}>
+            {KINDS.map((kind) => (
+              <option key={kind} value={kind}>
+                {KIND_LABELS[kind]}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Field>
+          Descripción
+          <Textarea name="description" defaultValue={place.description ?? ""} />
+        </Field>
+        <div className="mt-2 flex items-center gap-3">
+          <Button size="lg" type="submit" className="cursor-pointer">
+            Guardar ficha
+          </Button>
+          <Link className={buttonClass("secondary", undefined, "lg")} href="/places">
+            Cancelar
+          </Link>
+        </div>
+      </section>
+
+      <section className="rounded-2xl bg-white p-6 dark:bg-zinc-900">
+        <h2 className="text-lg font-semibold tracking-tight">Categorías</h2>
+        <p className="mt-1 mb-5 text-sm text-zinc-500 dark:text-zinc-400">
+          Busca por nombre o filtra por tono. Las asignadas quedan arriba.
+        </p>
+        <CategoryPicker categories={categories} selectedIds={[...selected]} />
+      </section>
     </form>
   );
 }

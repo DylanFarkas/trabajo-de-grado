@@ -29,7 +29,15 @@ export default async function RoutePage({
 
   return (
     <>
-      <PageHeader title={route.name} />
+      <PageHeader
+        crumbs={[
+          { href: "/", label: "Inicio" },
+          { href: "/routes", label: "Rutas" },
+          { label: route.name },
+        ]}
+        title={route.name}
+        subtitle={route.published ? "Publicada. La app la muestra si tiene al menos dos sitios." : "Borrador. Aún no se muestra en la app."}
+      />
       <QueryError message={placesError?.message} />
       <RouteForm
         routeId={route.id}

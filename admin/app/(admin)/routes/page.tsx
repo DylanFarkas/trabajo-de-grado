@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { LinkList } from "@/components/catalog/link-list";
+import { RoutesTable } from "@/app/(admin)/routes/routes-table";
 import { QueryError } from "@/components/catalog/query-error";
 import { PageHeader } from "@/components/layout/page-header";
 import { buttonClass } from "@/components/ui/button";
@@ -15,21 +15,23 @@ export default async function RoutesPage() {
 
   return (
     <>
-      <PageHeader title="Rutas">
+      <PageHeader
+        crumbs={[{ href: "/", label: "Inicio" }, { label: "Rutas" }]}
+        title="Rutas"
+        subtitle="Crea rutas personalizadas."
+      >
         <Link className={buttonClass("primary")} href="/routes/new">
           Nueva ruta
         </Link>
       </PageHeader>
       <QueryError message={error?.message} />
-      <LinkList
-        items={(routes ?? []).map((route) => {
-          const stops = Array.isArray(route.route_stops) ? route.route_stops.length : 0;
-          return {
-            href: `/routes/${route.id}`,
-            title: route.name,
-            meta: `${stops} ${stops === 1 ? "sitio" : "sitios"} · ${route.published ? "Publicada" : "Borrador"}`,
-          };
-        })}
+      <RoutesTable
+        routes={(routes ?? []).map((route) => ({
+          id: route.id,
+          name: route.name,
+          published: route.published,
+          stops: Array.isArray(route.route_stops) ? route.route_stops.length : 0,
+        }))}
       />
     </>
   );

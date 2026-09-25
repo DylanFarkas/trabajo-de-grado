@@ -9,7 +9,15 @@ export default async function NewRoutePage() {
 
   return (
     <>
-      <PageHeader title="Nueva ruta" />
+      <PageHeader
+        crumbs={[
+          { href: "/", label: "Inicio" },
+          { href: "/routes", label: "Rutas" },
+          { label: "Nueva" },
+        ]}
+        title="Nueva ruta"
+        subtitle="Crea una nueva ruta personalizada."
+      />
       <QueryError message={error?.message} />
       <RouteForm name="" description="" published={false} stopIds={[]} places={places ?? []} />
     </>

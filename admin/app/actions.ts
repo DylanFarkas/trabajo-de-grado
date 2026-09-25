@@ -70,6 +70,7 @@ export async function updatePlace(formData: FormData) {
 
   revalidatePath("/places");
   revalidatePath(`/places/${id}`);
+  redirect("/places");
 }
 
 export async function createCategory(formData: FormData) {
@@ -78,21 +79,29 @@ export async function createCategory(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
   const tone = String(formData.get("tone") ?? "");
-  const sortOrder = Number(formData.get("sort_order") ?? 0);
   if (!/^[a-z0-9_]+$/.test(id) || !name || !isTone(tone)) {
     throw new Error("El id va en minúsculas (comida). Elige un tono válido.");
   }
+
+  const { data: last } = await supabase
+    .from("categories")
+    .select("sort_order")
+    .order("sort_order", { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
   const { error } = await supabase.from("categories").insert({
     id,
     name,
     description: description || null,
     tone,
-    sort_order: Number.isFinite(sortOrder) ? sortOrder : 0,
+    sort_order: (last?.sort_order ?? -1) + 1,
     active: formData.get("active") === "on",
   });
   if (error) throw new Error(error.message);
   revalidatePath("/categories");
+  revalidatePath(`/categories/${id}`);
+  redirect(`/categories/${id}`);
 }
 
 export async function updateCategory(formData: FormData) {
@@ -101,7 +110,6 @@ export async function updateCategory(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
   const tone = String(formData.get("tone") ?? "");
-  const sortOrder = Number(formData.get("sort_order") ?? 0);
   if (!id || !name || !isTone(tone)) {
     throw new Error("La categoría necesita nombre y tono.");
   }
@@ -112,11 +120,42 @@ export async function updateCategory(formData: FormData) {
       name,
       description: description || null,
       tone,
-      sort_order: Number.isFinite(sortOrder) ? sortOrder : 0,
       active: formData.get("active") === "on",
     })
     .eq("id", id);
   if (error) throw new Error(error.message);
+  revalidatePath("/categories");
+  revalidatePath(`/categories/${id}`);
+  redirect("/categories");
+}
+
+export async function moveCategory(formData: FormData) {
+  const supabase = await adminClient();
+  const id = String(formData.get("id") ?? "");
+  const direction = String(formData.get("direction") ?? "");
+  if (!id || (direction !== "up" && direction !== "down")) {
+    throw new Error("No se pudo mover la categoría.");
+  }
+
+  const { data, error } = await supabase
+    .from("categories")
+    .select("id, sort_order, name")
+    .order("sort_order")
+    .order("name");
+  if (error) throw new Error(error.message);
+
+  const list = data ?? [];
+  const index = list.findIndex((row) => row.id === id);
+  const target = direction === "up" ? index - 1 : index + 1;
+  if (index < 0 || target < 0 || target >= list.length) return;
+
+  const next = [...list];
+  [next[index], next[target]] = [next[target], next[index]];
+  for (const [position, row] of next.entries()) {
+    if (row.sort_order === position) continue;
+    const { error: updateError } = await supabase.from("categories").update({ sort_order: position }).eq("id", row.id);
+    if (updateError) throw new Error(updateError.message);
+  }
   revalidatePath("/categories");
 }
 
@@ -127,6 +166,7 @@ export async function deleteCategory(formData: FormData) {
   if (error) throw new Error(error.message);
   revalidatePath("/categories");
   revalidatePath("/places");
+  redirect("/categories");
 }
 
 function routeFields(formData: FormData) {

@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 
 import { PlaceForm } from "@/app/(admin)/places/place-form";
+import { PageHeader } from "@/components/layout/page-header";
+import { kindLabel } from "@/lib/catalog";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function PlacePage({
@@ -21,8 +23,15 @@ export default async function PlacePage({
 
   return (
     <>
-      <p className="text-sm text-zinc-500 dark:text-zinc-400">{place.id}</p>
-      <h1 className="text-2xl font-semibold">{place.name}</h1>
+      <PageHeader
+        crumbs={[
+          { href: "/", label: "Inicio" },
+          { href: "/places", label: "Edificios" },
+          { label: place.id },
+        ]}
+        title={place.name}
+        subtitle={`${place.id} · ${kindLabel(place.kind)}`}
+      />
       <PlaceForm place={place} categories={categories ?? []} selected={selected} />
     </>
   );

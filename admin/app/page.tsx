@@ -1,5 +1,6 @@
 import { GoogleButton } from "@/components/auth/google-button";
 import { NavCard } from "@/components/catalog/nav-card";
+import { PageHeader } from "@/components/layout/page-header";
 import { Shell } from "@/components/layout/shell";
 import { getSessionProfile } from "@/lib/auth";
 
@@ -20,34 +21,37 @@ export default async function Home({
       ) : null}
       {!profile ? (
         <section className="max-w-md">
-          <h1 className="text-2xl font-semibold">Entrar al panel</h1>
-          <p className="mt-2 text-zinc-600 dark:text-zinc-400">
-            El login es con Google. Solo una cuenta con rol admin puede editar el catálogo.
-          </p>
+          <PageHeader
+            crumbs={[{ label: "Inicio" }]}
+            title="Entrar al panel"
+            subtitle="El login es con Google. Solo una cuenta con rol admin puede editar el catálogo."
+          />
           <div className="mt-6">
             <GoogleButton />
           </div>
         </section>
       ) : profile.role !== "admin" ? (
         <section className="max-w-lg">
-          <h1 className="text-2xl font-semibold">Esta cuenta no es admin</h1>
-          <p className="mt-2 text-zinc-600 dark:text-zinc-400">
-            Entraste como {profile.email}. El rol se asigna en la base, no desde este panel:
-          </p>
-          <pre className="mt-4 overflow-x-auto rounded-lg bg-zinc-900 p-4 text-sm text-zinc-100 dark:bg-black dark:ring-1 dark:ring-zinc-800">{`update public.profiles
+          <PageHeader
+            crumbs={[{ label: "Inicio" }]}
+            title="Esta cuenta no es admin"
+            subtitle={`Entraste como ${profile.email}. El rol se asigna en la base, no desde este panel.`}
+          />
+          <pre className="mt-6 overflow-x-auto rounded-lg bg-zinc-900 p-4 text-sm text-zinc-100 dark:bg-black dark:ring-1 dark:ring-zinc-800">{`update public.profiles
 set role = 'admin'
 where email = '${profile.email ?? ""}';`}</pre>
         </section>
       ) : (
         <section>
-          <h1 className="text-2xl font-semibold">Hola{profile.full_name ? `, ${profile.full_name}` : ""}</h1>
-          <p className="mt-2 text-zinc-600 dark:text-zinc-400">
-            Edita fichas de edificios, categorías y rutas con sus sitios.
-          </p>
+          <PageHeader
+            crumbs={[{ label: "Inicio" }]}
+            title={`Hola${profile.full_name ? `, ${profile.full_name}` : ""}`}
+            subtitle="Edita fichas de edificios, categorías y rutas con sus sitios."
+          />
           <div className="mt-6 grid gap-4 sm:grid-cols-3">
             <NavCard href="/places" title="Edificios" description="Lista y fichas. Ahí se asignan las categorías." />
-            <NavCard href="/categories" title="Categorías" description="Crear, editar y borrar." />
-            <NavCard href="/routes" title="Rutas" description="Nombre y sitios. Publicar las muestra en la app." />
+            <NavCard href="/categories" title="Categorías" description="Lista y fichas. Se asignan en cada edificio." />
+            <NavCard href="/routes" title="Rutas" description="Crea rutas personalizadas." />
           </div>
         </section>
       )}
