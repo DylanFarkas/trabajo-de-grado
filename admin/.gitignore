@@ -16,6 +16,8 @@
 # next.js
 /.next/
 /out/
+# Turbopack duplicates the dev cache as admin/admin/.next
+/admin/
 
 # production
 /build
