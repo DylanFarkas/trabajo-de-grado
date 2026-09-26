@@ -8,7 +8,7 @@ import {
 } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 
-import type { CampusPlace } from "@/places";
+import type { CampusPlace, PresetRoute } from "@/places";
 import type { RouteSlot } from "@/components/RouteSheet";
 
 type MapHeaderProps = {
@@ -25,6 +25,8 @@ type MapHeaderProps = {
   onLocate?: () => void;
   onOpenAssistant?: () => void;
   assistantActive?: boolean;
+  presetRoutes?: PresetRoute[];
+  onSelectPreset?: (route: PresetRoute) => void;
 };
 
 export function MapHeader({
@@ -41,6 +43,8 @@ export function MapHeader({
   onLocate,
   onOpenAssistant,
   assistantActive = false,
+  presetRoutes = [],
+  onSelectPreset,
 }: MapHeaderProps) {
   const loading = Boolean(status);
   const showResults = query.trim().length > 0;
@@ -58,7 +62,7 @@ export function MapHeader({
 
         <View className="mr-2 h-12 min-w-0 flex-1 flex-row items-center overflow-hidden rounded-full bg-white pl-3.5 pr-2 shadow-lg">
           <View className="mr-2 size-3.5 rounded-full border-2 border-[#8e8e93]">
-            <View className="absolute -bottom-px -right-[5px] h-0.5 w-1.5 rotate-45 rounded-sm bg-[#8e8e93]" />
+            <View className="absolute -bottom-px -right-1.25 h-0.5 w-1.5 rotate-45 rounded-sm bg-[#8e8e93]" />
           </View>
           <TextInput
             value={query}
@@ -97,7 +101,7 @@ export function MapHeader({
             className="mr-2 active:opacity-80"
           >
             <View
-              className={`size-[42px] shrink-0 items-center justify-center rounded-full shadow-md ${
+              className={`size-10.5 shrink-0 items-center justify-center rounded-full shadow-md ${
                 assistantActive ? "bg-[#111111]" : "bg-white"
               }`}
             >
@@ -119,14 +123,14 @@ export function MapHeader({
             className="mr-2 active:opacity-80"
           >
             <View
-              className={`size-[42px] shrink-0 items-center justify-center rounded-full shadow-md ${
+              className={`size-10.5 shrink-0 items-center justify-center rounded-full shadow-md ${
                 locating ? "bg-[#111111]" : "bg-white"
               }`}
             >
               {locating ? (
                 <ActivityIndicator size="small" color="#ffffff" />
               ) : (
-                <View className="size-[18px] items-center justify-center">
+                <View className="size-4.5 items-center justify-center">
                   <View className="absolute size-4 rounded-full border-2 border-[#111111]" />
                   <View className="size-1.5 rounded-full bg-[#111111]" />
                 </View>
@@ -142,7 +146,7 @@ export function MapHeader({
           className="active:opacity-80"
         >
           <View
-            className={`size-[42px] shrink-0 items-center justify-center rounded-full shadow-md ${
+            className={`size-10.5 shrink-0 items-center justify-center rounded-full shadow-md ${
               view3d ? "bg-[#111111]" : "bg-white"
             }`}
           >
@@ -157,6 +161,35 @@ export function MapHeader({
         </Pressable>
       </View>
 
+      {!showResults && onSelectPreset ? (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          className="mt-2"
+          contentContainerClassName="gap-2"
+        >
+          {presetRoutes.length === 0 ? (
+            <View className="rounded-full bg-white px-4 py-2 shadow-md">
+              <Text className="text-sm font-semibold text-[#8e8e93]">Sin rutas publicadas</Text>
+            </View>
+          ) : (
+            presetRoutes.map((route) => (
+              <Pressable
+                key={route.id}
+                accessibilityRole="button"
+                accessibilityLabel={`Recorrer ${route.name}`}
+                onPress={() => onSelectPreset(route)}
+                className="active:opacity-80"
+              >
+                <View className="rounded-full bg-white px-4 py-2 shadow-md">
+                  <Text className="text-sm font-semibold text-[#111111]">{route.name}</Text>
+                </View>
+              </Pressable>
+            ))
+          )}
+        </ScrollView>
+      ) : null}
+
       {loading && !showResults ? (
         <View className="mt-2 flex-row items-center self-center rounded-full bg-white/95 px-3 py-2 shadow-[0_6px_16px_rgba(17,17,17,0.1)]">
           <ActivityIndicator size="small" color="#111111" />
@@ -166,15 +199,15 @@ export function MapHeader({
 
       {showResults ? (
         <View className="mt-2 overflow-hidden rounded-[22px] bg-white pb-2 shadow-[0_16px_36px_rgba(17,17,17,0.16)]">
-          <Text className="px-[18px] pb-2.5 pt-4 text-sm font-medium text-[#8e8e93]">
+          <Text className="px-4.5 pb-2.5 pt-4 text-sm font-medium text-[#8e8e93]">
             Toca un lugar para usarlo como {slotLabel}
           </Text>
           {results.length === 0 ? (
-            <Text className="px-[18px] pb-3 text-[15px] text-[#3a3a3c]">
+            <Text className="px-4.5 pb-3 text-[15px] text-[#3a3a3c]">
               No hay edificios con ese nombre
             </Text>
           ) : (
-            <ScrollView keyboardShouldPersistTaps="handled" className="max-h-[280px]">
+            <ScrollView keyboardShouldPersistTaps="handled" className="max-h-70">
               {results.map((place) => (
                 <Pressable
                   key={place.id}
@@ -198,7 +231,7 @@ export function MapHeader({
                         <Text className="text-base font-semibold text-[#111111]" numberOfLines={1}>
                           {place.title}
                         </Text>
-                        <Text className="mt-[3px] text-[13px] text-[#8e8e93]" numberOfLines={1}>
+                        <Text className="mt-0.75 text-[13px] text-[#8e8e93]" numberOfLines={1}>
                           {place.categories[0] ?? "Campus"}
                         </Text>
                       </View>

@@ -51,6 +51,8 @@ type RouteSheetProps = {
   routing?: boolean;
   streetProfile?: StreetProfile;
   onStreetProfileChange?: (profile: StreetProfile) => void;
+  presetName?: string | null;
+  presetStops?: { letter: string; name: string }[] | null;
 };
 
 const SPRING = { damping: 22, stiffness: 220, mass: 0.9 };
@@ -93,7 +95,7 @@ function ModeToggle({
   const driveOn = value === "driving-car";
 
   return (
-    <View className="mb-[18px]">
+    <View className="mb-4.5">
       <Text className="mb-2.5 text-xs font-bold uppercase tracking-wide text-[#8e8e93]">
         Cómo vas a llegar
       </Text>
@@ -111,7 +113,7 @@ function ModeToggle({
             className="active:opacity-80"
           >
             <View
-              className={`min-h-[52px] flex-row items-center justify-center self-stretch rounded-[14px] px-3 py-3.5 ${
+              className={`min-h-13 flex-row items-center justify-center self-stretch rounded-[14px] px-3 py-3.5 ${
                 walkOn ? "bg-[#111111]" : "bg-[#f2f2f4]"
               }`}
             >
@@ -139,7 +141,7 @@ function ModeToggle({
             className="active:opacity-80"
           >
             <View
-              className={`min-h-[52px] flex-row items-center justify-center self-stretch rounded-[14px] px-3 py-3.5 ${
+              className={`min-h-13 flex-row items-center justify-center self-stretch rounded-[14px] px-3 py-3.5 ${
                 driveOn ? "bg-[#111111]" : "bg-[#f2f2f4]"
               }`}
             >
@@ -192,7 +194,7 @@ function FieldCard({
     >
       <View className="w-full flex-row items-center">
         <View
-          className={`mr-3.5 size-[34px] items-center justify-center rounded-full ${
+          className={`mr-3.5 size-8.5 items-center justify-center rounded-full ${
             active ? "scale-[1.06]" : ""
           } ${!active ? "bg-[#c7c7cc]" : tone === "blue" ? "bg-[#1d4ed8]" : "bg-[#111111]"}`}
         >
@@ -209,7 +211,7 @@ function FieldCard({
             </Text>
             {active ? (
               <View
-                className={`shrink-0 rounded-full px-[9px] py-[3px] ${
+                className={`shrink-0 rounded-full px-2.25 py-0.75 ${
                   tone === "blue" ? "bg-[#1d4ed8]" : "bg-[#111111]"
                 }`}
               >
@@ -223,7 +225,7 @@ function FieldCard({
             ) : null}
           </View>
           <Text
-            className={`mt-[3px] text-[15px] leading-5 ${
+            className={`mt-0.75 text-[15px] leading-5 ${
               !value
                 ? active
                   ? "font-semibold text-[#111111]"
@@ -279,6 +281,8 @@ export function RouteSheet({
   routing = false,
   streetProfile = "foot-walking",
   onStreetProfileChange,
+  presetName = null,
+  presetStops = null,
 }: RouteSheetProps) {
   const canSwap = Boolean(originName || destinationName);
   const canClear = Boolean(originName || destinationName || distanceLabel || error);
@@ -294,7 +298,9 @@ export function RouteSheet({
       ? "Toca el mapa para colocar la entrada"
       : "Elige por cuál entrada llegar"
     : distanceLabel
-      ? [distanceLabel, durationLabel, routeMeta].filter(Boolean).join(" · ")
+      ? [presetName, distanceLabel, durationLabel, routeMeta].filter(Boolean).join(" · ")
+      : presetName
+        ? presetName
       : originName && destinationName
         ? `${originName} → ${destinationName}`
         : originName
@@ -304,10 +310,10 @@ export function RouteSheet({
             : "Origen y destino";
 
   useEffect(() => {
-    if (place || campusPickerOpen || showGoToCampus) {
+    if (place || campusPickerOpen || showGoToCampus || presetName) {
       translateY.value = 0;
     }
-  }, [place, campusPickerOpen, showGoToCampus, translateY]);
+  }, [place, campusPickerOpen, showGoToCampus, presetName, translateY]);
 
   const toggleSheet = () => {
     "worklet";
@@ -360,7 +366,7 @@ export function RouteSheet({
     >
       <GestureDetector gesture={headerGesture}>
         <AnimatedView
-          className="min-h-[68px] justify-center pb-[18px]"
+          className="min-h-17 justify-center pb-4.5"
           accessibilityRole="button"
           accessibilityLabel="Abrir o cerrar tu ruta"
         >
@@ -368,7 +374,7 @@ export function RouteSheet({
           <View className="flex-row items-center">
             <View className="mr-2 min-w-0 flex-1">
               <Text className="text-lg font-bold tracking-tight text-[#111111]">Tu ruta</Text>
-              <Text className="mt-1 text-[13px] leading-[18px] text-[#8e8e93]" numberOfLines={2}>
+              <Text className="mt-1 text-[13px] leading-4.5 text-[#8e8e93]" numberOfLines={2}>
                 {summary}
               </Text>
             </View>
@@ -387,7 +393,7 @@ export function RouteSheet({
                 hitSlop={8}
                 className="mr-2 size-8 items-center justify-center rounded-full bg-[#f5f5f7] active:opacity-80"
               >
-                <Text className="-mt-0.5 text-2xl leading-[26px] text-[#111111]">‹</Text>
+                <Text className="-mt-0.5 text-2xl leading-6.5 text-[#111111]">‹</Text>
               </Pressable>
               <Text className="text-[13px] font-bold text-[#8e8e93]">Para el {pickingLabel}</Text>
             </View>
@@ -395,7 +401,7 @@ export function RouteSheet({
             <View className="flex-row items-center">
               <View className="mr-3 min-w-0 flex-1">
                 <Text
-                  className="text-lg font-bold leading-[23px] tracking-tight text-[#111111]"
+                  className="text-lg font-bold leading-5.75 tracking-tight text-[#111111]"
                   numberOfLines={2}
                 >
                   {place.title}
@@ -416,7 +422,7 @@ export function RouteSheet({
             {place.categories.length > 0 ? (
               <View className="mt-3 flex-row flex-wrap">
                 {place.categories.map((category) => (
-                  <View key={category} className="mb-1.5 mr-1.5 rounded-full bg-[#f5f5f7] px-2.5 py-[5px]">
+                  <View key={category} className="mb-1.5 mr-1.5 rounded-full bg-[#f5f5f7] px-2.5 py-1.25">
                     <Text className="text-xs font-semibold text-[#3a3a3c]">{category}</Text>
                   </View>
                 ))}
@@ -453,7 +459,7 @@ export function RouteSheet({
                 hitSlop={8}
                 className="mr-2 size-8 items-center justify-center rounded-full bg-[#f5f5f7] active:opacity-80"
               >
-                <Text className="-mt-0.5 text-2xl leading-[26px] text-[#111111]">‹</Text>
+                <Text className="-mt-0.5 text-2xl leading-6.5 text-[#111111]">‹</Text>
               </Pressable>
               <Text className="text-[13px] font-bold text-[#8e8e93]">Entradas al campus</Text>
             </View>
@@ -475,7 +481,7 @@ export function RouteSheet({
                     className="active:opacity-80"
                   >
                     <View className="flex-row items-center px-4 py-4">
-                      <View className="mr-3 size-[34px] items-center justify-center rounded-full bg-[#111111]">
+                      <View className="mr-3 size-8.5 items-center justify-center rounded-full bg-[#111111]">
                         <Text className="text-sm font-extrabold text-white">{index + 1}</Text>
                       </View>
                       <View className="mr-3 flex-1 justify-center">
@@ -541,6 +547,31 @@ export function RouteSheet({
             ) : null}
 
             <View className="gap-3">
+              {presetStops && presetStops.length > 0 ? (
+                presetStops.map((stop, index) => {
+                  const last = index === presetStops.length - 1;
+                  const label = index === 0 ? "Salida" : last ? "Llegada" : "Parada";
+                  return (
+                    <View key={`${stop.letter}-${stop.name}`} className="flex-row items-center rounded-2xl bg-[#f7f7f8] px-4 py-3">
+                      <View
+                        className={`mr-3.5 size-8.5 items-center justify-center rounded-full ${
+                          last ? "bg-[#2563eb]" : "bg-[#111111]"
+                        }`}
+                      >
+                        <Text className="text-[13px] font-bold text-white">{stop.letter}</Text>
+                      </View>
+                      <View className="min-w-0 flex-1">
+                        <Text className="text-[11px] font-semibold uppercase tracking-wide text-[#8e8e93]">
+                          {label}
+                        </Text>
+                        <Text className="mt-0.75 text-[15px] font-semibold leading-5 text-[#111111]" numberOfLines={2}>
+                          {stop.name}
+                        </Text>
+                      </View>
+                    </View>
+                  );
+                })
+              ) : (
               <FieldCard
                 letter="A"
                 label="Origen"
@@ -551,15 +582,18 @@ export function RouteSheet({
                 onPress={() => onSelectSlot("origin")}
                 onClear={() => onClearSlot("origin")}
               />
+              )}
 
-              <View className="z-[2] -my-1 items-end pr-4">
+              {presetStops && presetStops.length > 0 ? null : (
+              <>
+              <View className="z-2 -my-1 items-end pr-4">
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel="Intercambiar origen y destino"
-                  disabled={!canSwap}
+                  disabled={!canSwap || Boolean(presetName)}
                   onPress={onSwap}
                   className={`size-9 items-center justify-center rounded-full border border-[#ebebef] bg-white active:opacity-80 ${
-                    canSwap ? "" : "opacity-35"
+                    canSwap && !presetName ? "" : "opacity-35"
                   }`}
                 >
                   <Text className="text-sm font-bold text-[#3a3a3c]">⇅</Text>
@@ -576,10 +610,12 @@ export function RouteSheet({
                 onPress={() => onSelectSlot("destination")}
                 onClear={() => onClearSlot("destination")}
               />
+              </>
+              )}
             </View>
 
             {error ? (
-              <Text className="mt-[18px] text-center text-[13px] font-semibold leading-[18px] text-[#b42318]">
+              <Text className="mt-4.5 text-center text-[13px] font-semibold leading-4.5 text-[#b42318]">
                 {error}
               </Text>
             ) : null}

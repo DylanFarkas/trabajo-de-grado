@@ -1,0 +1,91 @@
+-- Categorías editables a partir de amenity, faculty y leisure del GeoJSON.
+-- academic cubre facultades: no son comida, deporte, biblioteca ni cultura.
+
+alter table public.categories drop constraint categories_tone_check;
+alter table public.categories
+  add constraint categories_tone_check
+  check (tone in ('food', 'sport', 'library', 'culture', 'academic'));
+
+insert into public.categories (id, name, tone, sort_order)
+values
+  ('biblioteca', 'Biblioteca', 'library', 1),
+  ('comida', 'Comida', 'food', 2),
+  ('teatro', 'Teatro', 'culture', 3),
+  ('deporte', 'Deporte', 'sport', 4),
+  ('arquitectura', 'Arquitectura', 'academic', 10),
+  ('artes_escenicas', 'Artes escénicas', 'academic', 11),
+  ('artes_integradas', 'Artes integradas', 'academic', 12),
+  ('artes_visuales', 'Artes visuales', 'academic', 13),
+  ('ciencias_naturales', 'Ciencias naturales y exactas', 'academic', 14),
+  ('ciencias_sociales', 'Ciencias sociales y económicas', 'academic', 15),
+  ('diseno', 'Diseño', 'academic', 16),
+  ('estadistica', 'Estadística', 'academic', 17),
+  ('geografia', 'Geografía', 'academic', 18),
+  ('humanidades', 'Humanidades', 'academic', 19),
+  ('ingenieria', 'Ingeniería', 'academic', 20),
+  ('ingenieria_alimentos', 'Ingeniería de alimentos', 'academic', 21),
+  ('ingenieria_civil', 'Ingeniería civil y geomática', 'academic', 22),
+  ('ingenieria_electrica', 'Ingeniería eléctrica y electrónica', 'academic', 23),
+  ('ingenieria_industrial', 'Ingeniería industrial', 'academic', 24),
+  ('ingenieria_materiales', 'Ingeniería de materiales', 'academic', 25),
+  ('ingenieria_mecanica', 'Ingeniería mecánica', 'academic', 26),
+  ('ingenieria_quimica', 'Ingeniería química', 'academic', 27),
+  ('ingenieria_sistemas', 'Ingeniería de sistemas y computación', 'academic', 28),
+  ('musica', 'Música', 'academic', 29)
+on conflict (id) do nothing;
+
+insert into public.place_categories (place_id, category_id)
+values
+  ('B13', 'ingenieria_sistemas'),
+  ('B15', 'ingenieria'),
+  ('B19', 'ciencias_naturales'),
+  ('B20', 'ciencias_naturales'),
+  ('B21', 'ciencias_naturales'),
+  ('B23', 'ciencias_naturales'),
+  ('D1', 'arquitectura'),
+  ('D10', 'humanidades'),
+  ('D12', 'ciencias_sociales'),
+  ('D14', 'comida'),
+  ('D16', 'teatro'),
+  ('D17', 'deporte'),
+  ('D2', 'arquitectura'),
+  ('D5', 'diseno'),
+  ('D6', 'artes_integradas'),
+  ('D7', 'geografia'),
+  ('D8', 'humanidades'),
+  ('E10', 'artes_escenicas'),
+  ('E10', 'artes_visuales'),
+  ('E11', 'diseno'),
+  ('E12', 'diseno'),
+  ('E15', 'artes_integradas'),
+  ('E17', 'humanidades'),
+  ('E19', 'biblioteca'),
+  ('E20', 'ciencias_naturales'),
+  ('E22', 'ingenieria'),
+  ('E23', 'ingenieria'),
+  ('E26', 'ingenieria'),
+  ('E29', 'ingenieria_quimica'),
+  ('E32', 'ingenieria_alimentos'),
+  ('E33', 'ingenieria_mecanica'),
+  ('E37', 'ingenieria'),
+  ('E38', 'ingenieria'),
+  ('E39', 'ingenieria'),
+  ('E42', 'ingenieria_mecanica'),
+  ('E43', 'ingenieria_civil'),
+  ('E44', 'ingenieria_materiales'),
+  ('E46', 'ingenieria_materiales'),
+  ('E47', 'ingenieria_materiales'),
+  ('E48', 'ingenieria_civil'),
+  ('E49', 'estadistica'),
+  ('E50', 'ingenieria_electrica'),
+  ('E52', 'ingenieria_electrica'),
+  ('E53', 'ingenieria_electrica'),
+  ('E55', 'ingenieria_electrica'),
+  ('E56', 'ingenieria_industrial'),
+  ('E6', 'musica'),
+  ('E7', 'artes_escenicas'),
+  ('E7', 'musica'),
+  ('E8', 'artes_escenicas'),
+  ('E8', 'musica'),
+  ('E9', 'artes_integradas')
+on conflict (place_id, category_id) do nothing;

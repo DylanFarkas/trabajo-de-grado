@@ -26,6 +26,54 @@ export type PlaceInfo = {
   detail: string | null;
 };
 
+export type CatalogTone = "food" | "sport" | "library" | "culture" | "academic";
+
+export type PlaceRecord = {
+  name: string;
+  description: string | null;
+};
+
+export type CategoryRecord = {
+  id: string;
+  name: string;
+  tone: CatalogTone;
+  sortOrder: number;
+};
+
+export type PresetRoute = {
+  id: number;
+  name: string;
+  description: string | null;
+  stops: string[];
+};
+
+export type CampusCatalog = {
+  places: Record<string, PlaceRecord>;
+  categories: Record<string, CategoryRecord>;
+  assignments: Record<string, string[]>;
+  routes: PresetRoute[];
+};
+
+const MAP_TONES = new Set<CatalogTone>(["food", "sport", "library", "culture"]);
+
+export function categoriesForCode(
+  code: string | null,
+  catalog: CampusCatalog | null | undefined,
+): CategoryRecord[] {
+  if (!code || !catalog) return [];
+  return (catalog.assignments[code] ?? [])
+    .map((id) => catalog.categories[id])
+    .filter((category): category is CategoryRecord => category != null)
+    .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, "es"));
+}
+
+export function catalogMapTone(
+  code: string | null,
+  catalog: CampusCatalog | null | undefined,
+): CatalogTone | null {
+  return categoriesForCode(code, catalog).find((category) => MAP_TONES.has(category.tone))?.tone ?? null;
+}
+
 export type CampusPlace = PlaceInfo & {
   id: string;
   point: LatLng;
@@ -42,7 +90,10 @@ export function floorsOf(props: BuildingProperties | null | undefined): number {
   return 1;
 }
 
-export function placeInfo(props: BuildingProperties | null | undefined): PlaceInfo {
+export function placeInfo(
+  props: BuildingProperties | null | undefined,
+  catalog?: CampusCatalog | null,
+): PlaceInfo {
   if (!props) {
     return {
       title: "Punto en el mapa",
@@ -53,20 +104,26 @@ export function placeInfo(props: BuildingProperties | null | undefined): PlaceIn
     };
   }
 
-  const name = props["addr:housename"] || props.name;
+  const localName = props["addr:housename"] || props.name;
   const code = props["addr:housenumber"] ? String(props["addr:housenumber"]) : null;
+  const remote = code && catalog?.places[code] ? catalog.places[code] : null;
+  const name = remote?.name || localName;
   const title = name || (code ? `Edificio ${code}` : "Edificio sin nombre");
   const subtitle = name && code ? `Código ${code}` : null;
 
   const categories: string[] = [];
-  if (props.amenity) {
-    categories.push(prettyLabel(AMENITY_LABELS[props.amenity] ?? props.amenity));
-  }
-  if (props.faculty) {
-    categories.push(prettyLabel(String(props.faculty)));
-  }
-  if (props.leisure) {
-    categories.push(prettyLabel(String(props.leisure)));
+  if (remote) {
+    categories.push(...categoriesForCode(code, catalog).map((category) => category.name));
+  } else {
+    if (props.amenity) {
+      categories.push(prettyLabel(AMENITY_LABELS[props.amenity] ?? props.amenity));
+    }
+    if (props.faculty) {
+      categories.push(prettyLabel(String(props.faculty)));
+    }
+    if (props.leisure) {
+      categories.push(prettyLabel(String(props.leisure)));
+    }
   }
 
   // Temporalmente ocultos: pisos y altura
@@ -127,11 +184,14 @@ function normalize(value: string): string {
     .replace(/[\u0300-\u036f]/g, "");
 }
 
-export function listCampusPlaces(collection: GeoJsonFeatureCollection): CampusPlace[] {
+export function listCampusPlaces(
+  collection: GeoJsonFeatureCollection,
+  catalog?: CampusCatalog | null,
+): CampusPlace[] {
   const places: CampusPlace[] = [];
   collection.features.forEach((feature, index) => {
     const building = (feature.properties ?? {}) as BuildingProperties;
-    const info = placeInfo(building);
+    const info = placeInfo(building, catalog);
     if (info.title === "Edificio sin nombre") return;
     const point = entrancePoint(info.code) ?? geometryPoint(feature.geometry);
     if (!point) return;
