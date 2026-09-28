@@ -24,6 +24,7 @@ export function RouteForm({
   routeId,
   name,
   description,
+  imageUrl,
   published,
   stopIds,
   places,
@@ -31,6 +32,7 @@ export function RouteForm({
   routeId?: number;
   name: string;
   description: string;
+  imageUrl: string | null;
   published: boolean;
   stopIds: string[];
   places: RoutePlace[];
@@ -72,6 +74,7 @@ export function RouteForm({
           Descripción
           <Textarea name="description" className={fieldClass} defaultValue={description} />
         </Field>
+        <ThumbnailField imageUrl={imageUrl} />
         <label className="flex items-start gap-3 rounded-xl bg-zinc-50 px-3 py-3 text-sm dark:bg-[#262626]">
           <input className="mt-0.5" type="checkbox" name="published" defaultChecked={published} />
           <span>
@@ -205,6 +208,76 @@ export function RouteForm({
         )}
       </section>
     </form>
+  );
+}
+
+function ThumbnailField({ imageUrl }: { imageUrl: string | null }) {
+  const [preview, setPreview] = useState(imageUrl);
+  const [objectUrl, setObjectUrl] = useState<string | null>(null);
+  const [remove, setRemove] = useState(false);
+
+  function pickFile(file: File | undefined) {
+    if (!file) return;
+    if (objectUrl) URL.revokeObjectURL(objectUrl);
+    const next = URL.createObjectURL(file);
+    setObjectUrl(next);
+    setPreview(next);
+    setRemove(false);
+  }
+
+  function clearImage(input: HTMLInputElement | null) {
+    if (objectUrl) URL.revokeObjectURL(objectUrl);
+    setObjectUrl(null);
+    setPreview(null);
+    setRemove(true);
+    if (input) input.value = "";
+  }
+
+  return (
+    <div className="grid gap-2">
+      <p className="text-sm">Miniatura</p>
+      <input type="hidden" name="remove_image" value={remove ? "on" : ""} />
+      <div className="flex items-center gap-3 rounded-xl bg-zinc-50 p-3 dark:bg-[#262626]">
+        <div className="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white dark:bg-[#171717]">
+          {preview ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img alt="Vista previa de la miniatura" className="size-full object-contain" src={preview} />
+          ) : (
+            <span className="text-[11px] font-medium tracking-wide text-zinc-400">Sin foto</span>
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium">Miniatura</p>
+          {/* <p className="mt-0.5 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+            PNG recortado, sobre fondo claro. Se muestra a la derecha de la ruta en la app.
+          </p> */}
+          <div className="mt-2 flex flex-wrap gap-2">
+            <label className={cn(buttonClass("secondary", undefined, "sm"), "cursor-pointer")}>
+              {preview ? "Cambiar" : "Subir"}
+              <input
+                accept="image/png,image/jpeg,image/webp,image/gif"
+                className="sr-only"
+                name="image"
+                type="file"
+                onChange={(event) => pickFile(event.target.files?.[0])}
+              />
+            </label>
+            {preview ? (
+              <button
+                className={buttonClass("danger", "cursor-pointer px-3 py-1")}
+                type="button"
+                onClick={(event) => {
+                  const form = event.currentTarget.form;
+                  clearImage(form?.querySelector<HTMLInputElement>('input[name="image"]') ?? null);
+                }}
+              >
+                Quitar
+              </button>
+            ) : null}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 

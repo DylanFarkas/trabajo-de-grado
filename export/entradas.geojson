@@ -52,6 +52,66 @@
           865132.415006
         ]
       }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id_entrada": 4,
+        "edificio": "D17",
+        "name": "Entrada D17"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          1060473.571834,
+          864601.224776
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id_entrada": 5,
+        "edificio": "E19",
+        "name": "Entrada E19"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          1060357.543439,
+          865128.325656
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id_entrada": 6,
+        "edificio": "B23",
+        "name": "Entrada B23"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          1060781.450147,
+          865109.629659
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id_entrada": 7,
+        "edificio": "E17",
+        "name": "Entrada E17"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          1060275.851945,
+          865132.087130
+        ]
+      }
     }
   ]
 }

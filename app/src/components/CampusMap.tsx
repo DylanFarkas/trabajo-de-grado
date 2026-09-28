@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Keyboard, View } from "react-native";
+import { Keyboard, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import WebView, { type WebViewMessageEvent } from "react-native-webview";
 import { withUniwind } from "uniwind";
@@ -41,7 +41,12 @@ import type { StreetProfile } from "@/routing/openRouteService";
 import type { BuildingProperties, GeoJsonFeatureCollection } from "@/types/campus";
 import { MapHeader } from "@/components/MapHeader";
 import { AssistantSheet } from "@/components/AssistantSheet";
+import { ExploreSheet } from "@/components/ExploreSheet";
+import { HomeTabs, homeTabBarHeight, type HomeTab } from "@/components/HomeTabs";
+import { MapControls } from "@/components/MapControls";
 import { RouteSheet, type RouteSlot } from "@/components/RouteSheet";
+import { useSheetPresence } from "@/components/SnapSheet";
+import { ToursSheet } from "@/components/ToursSheet";
 
 const UniWebView = withUniwind(WebView);
 
@@ -145,7 +150,7 @@ function buildMapHtml(): string {
       background: #2563eb; border: 3px solid #fff;
       box-shadow: 0 0 0 6px rgba(37,99,235,0.22), 0 6px 14px rgba(17,17,17,0.28);
     }
-    .maplibregl-ctrl-bottom-left { bottom: 130px; left: 12px; }
+    .maplibregl-ctrl-bottom-left { bottom: 220px; left: 12px; }
     .maplibregl-ctrl-group { border-radius: 14px !important; overflow: hidden; box-shadow: 0 8px 18px rgba(17,17,17,0.12); }
   </style>
 </head>
@@ -171,6 +176,13 @@ function buildMapHtml(): string {
 
     map.addControl(new maplibregl.NavigationControl({ visualizePitch: false, showCompass: false }), 'bottom-left');
 
+    var chromeBottom = 220;
+    window.setChromeBottom = function (px) {
+      chromeBottom = px;
+      var node = document.querySelector('.maplibregl-ctrl-bottom-left');
+      if (node) node.style.bottom = px + 'px';
+    };
+
     var is3d = true;
     function applyView3d(enabled) {
       is3d = enabled;
@@ -191,6 +203,7 @@ function buildMapHtml(): string {
       map.easeTo({
         center: [lng, lat],
         zoom: Math.max(map.getZoom(), 17.2),
+        offset: [0, -Math.round(chromeBottom / 3)],
         duration: 700,
         essential: true
       });
@@ -355,7 +368,12 @@ function buildMapHtml(): string {
         return b.extend(c);
       }, new maplibregl.LngLatBounds(coordinates[0], coordinates[0]));
       map.fitBounds(bounds, {
-        padding: { top: 130, bottom: 320, left: 36, right: 56 },
+        padding: {
+          top: 96,
+          bottom: Math.min(chromeBottom + 24, Math.max(120, window.innerHeight - 220)),
+          left: 36,
+          right: 72
+        },
         duration: 700,
         maxZoom: 18,
         pitch: map.getPitch(),
@@ -379,6 +397,9 @@ function buildMapHtml(): string {
       [
         'buildings-labels', 'buildings-3d', 'buildings-footprint', 'buildings-hit',
         'paths-line', 'paths-mid', 'paths-casing', 'paths-glow',
+        'service-line', 'service-casing',
+        'foot-line', 'foot-casing',
+        'steps-line',
         'pasillos-line', 'pasillos-casing'
       ].forEach(function (id) {
         if (map.getLayer(id)) map.removeLayer(id);
@@ -388,34 +409,92 @@ function buildMapHtml(): string {
       if (map.getSource('pasillos')) map.removeSource('pasillos');
 
       const beforeId = firstSymbolLayerId();
+      [
+        'road_path_pedestrian',
+        'tunnel_path_pedestrian',
+        'bridge_path_pedestrian',
+        'bridge_path_pedestrian_casing'
+      ].forEach(function (id) {
+        if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', 'none');
+      });
+      const serviceFilter = ['==', ['get', 'highway'], 'service'];
+      const footFilter = ['match', ['get', 'highway'], ['footway', 'path', 'pedestrian', 'bridleway'], true, false];
+      const stepsFilter = ['==', ['get', 'highway'], 'steps'];
 
       map.addSource('paths', { type: 'geojson', data: paths });
       map.addLayer({
-        id: 'paths-casing', type: 'line', source: 'paths',
+        id: 'service-casing', type: 'line', source: 'paths',
+        filter: serviceFilter,
         layout: { 'line-cap': 'round', 'line-join': 'round' },
         paint: {
-          'line-color': '#6f7f6a',
+          'line-color': '#cfcdca',
           'line-width': [
             'interpolate', ['linear'], ['zoom'],
-            15, 2.2,
-            17, 4.0,
-            19, 5.5
-          ],
-          'line-opacity': 0.38
+            15, 2.4,
+            17, 5.2,
+            19, 8.5
+          ]
         }
       }, beforeId);
       map.addLayer({
-        id: 'paths-line', type: 'line', source: 'paths',
+        id: 'service-line', type: 'line', source: 'paths',
+        filter: serviceFilter,
         layout: { 'line-cap': 'round', 'line-join': 'round' },
         paint: {
-          'line-color': '#9aab92',
+          'line-color': '#ffffff',
           'line-width': [
             'interpolate', ['linear'], ['zoom'],
             15, 1.4,
-            17, 2.6,
-            19, 3.6
+            17, 3.4,
+            19, 6
+          ]
+        }
+      }, beforeId);
+      map.addLayer({
+        id: 'foot-casing', type: 'line', source: 'paths',
+        filter: footFilter,
+        layout: { 'line-cap': 'butt', 'line-join': 'round' },
+        paint: {
+          'line-color': '#d07c72',
+          'line-dasharray': [2, 1.5],
+          'line-width': [
+            'interpolate', ['linear'], ['zoom'],
+            15, 1.8,
+            17, 3.0,
+            19, 4.0
           ],
-          'line-opacity': 0.72
+          'line-opacity': 0.9
+        }
+      }, beforeId);
+      map.addLayer({
+        id: 'foot-line', type: 'line', source: 'paths',
+        filter: footFilter,
+        layout: { 'line-cap': 'butt', 'line-join': 'round' },
+        paint: {
+          'line-color': '#f4a89a',
+          'line-dasharray': [2, 1.5],
+          'line-width': [
+            'interpolate', ['linear'], ['zoom'],
+            15, 1.2,
+            17, 2.2,
+            19, 3.0
+          ],
+          'line-opacity': 0.98
+        }
+      }, beforeId);
+      map.addLayer({
+        id: 'steps-line', type: 'line', source: 'paths',
+        filter: stepsFilter,
+        layout: { 'line-cap': 'butt', 'line-join': 'round' },
+        paint: {
+          'line-color': '#e0897c',
+          'line-dasharray': [0.5, 0.4],
+          'line-width': [
+            'interpolate', ['linear'], ['zoom'],
+            15, 1.6,
+            17, 2.6,
+            19, 3.4
+          ]
         }
       }, beforeId);
 
@@ -561,6 +640,7 @@ function buildMapHtml(): string {
 
 export function CampusMap() {
   const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
   const webRef = useRef<WebView>(null);
   const [status, setStatus] = useState("Cargando mapa…");
   const [origin, setOrigin] = useState<LatLng | null>(null);
@@ -570,7 +650,10 @@ export function CampusMap() {
   const [route, setRoute] = useState<HybridRouteResult | null>(null);
   const [routeError, setRouteError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  const [assistantOpen, setAssistantOpen] = useState(false);
+  const [tab, setTab] = useState<HomeTab>("map");
+  const [panelHeight, setPanelHeight] = useState(0);
+  const [pickingSlot, setPickingSlot] = useState<RouteSlot | null>(null);
+  const [pendingPreset, setPendingPreset] = useState<PresetRoute | null>(null);
   const [assistantPrompt, setAssistantPrompt] = useState("");
   const [assistantLoading, setAssistantLoading] = useState(false);
   const [assistantError, setAssistantError] = useState<string | null>(null);
@@ -589,6 +672,11 @@ export function CampusMap() {
   const [entranceOverrides, setEntranceOverrides] = useState<Record<string, LatLng>>({});
   const [streetProfile, setStreetProfile] = useState<StreetProfile>("foot-walking");
   const activeSlotRef = useRef<RouteSlot>(activeSlot);
+  const tabRef = useRef<HomeTab>(tab);
+  const chromeBottomRef = useRef(220);
+  const searchSlotRef = useRef<RouteSlot | null>("destination");
+  const inTripRef = useRef(false);
+  const pendingPresetRef = useRef<PresetRoute | null>(null);
   const selectedRef = useRef<SelectedBuilding | null>(null);
   const routeRequestRef = useRef(0);
   const relocatingRef = useRef<string | null>(null);
@@ -601,6 +689,14 @@ export function CampusMap() {
   useEffect(() => {
     activeSlotRef.current = activeSlot;
   }, [activeSlot]);
+
+  useEffect(() => {
+    tabRef.current = tab;
+  }, [tab]);
+
+  useEffect(() => {
+    pendingPresetRef.current = pendingPreset;
+  }, [pendingPreset]);
 
   useEffect(() => {
     selectedRef.current = selected;
@@ -634,11 +730,6 @@ export function CampusMap() {
       })),
     [entranceOverrides],
   );
-
-  const selectSlot = useCallback((slot: RouteSlot) => {
-    activeSlotRef.current = slot;
-    setActiveSlot(slot);
-  }, []);
 
   const html = useMemo(() => buildMapHtml(), []);
   useEffect(() => {
@@ -818,10 +909,12 @@ export function CampusMap() {
   );
 
   const runPreset = useCallback(
-    (presetRoute: PresetRoute) => {
-      if (!origin) {
+    (presetRoute: PresetRoute, fromPoint?: LatLng, fromName?: string) => {
+      const start = fromPoint ?? origin;
+      const startName = fromPoint ? (fromName ?? "Origen") : originName;
+      if (!start) {
         setPreset(null);
-        setRouteError("Elige primero desde dónde sales");
+        setPendingPreset(presetRoute);
         activeSlotRef.current = "origin";
         setActiveSlot("origin");
         return;
@@ -846,7 +939,7 @@ export function CampusMap() {
         return;
       }
 
-      const ordered = orderStopsFromOrigin(origin, resolved);
+      const ordered = orderStopsFromOrigin(start, resolved);
       if (!ordered) {
         setRoute(null);
         setRouteError("No hay camino entre esos sitios");
@@ -856,10 +949,10 @@ export function CampusMap() {
 
       const result = routeThroughPoints(
         ordered.map((stop) => stop.point),
-        origin,
+        start,
       );
       const labeled = [
-        { letter: pointLetter(0), name: originName ?? "Origen", point: origin },
+        { letter: pointLetter(0), name: startName ?? "Origen", point: start },
         ...ordered.map((stop, index) => ({
           letter: pointLetter(index + 1),
           name: stop.name,
@@ -869,6 +962,10 @@ export function CampusMap() {
       const last = labeled[labeled.length - 1];
       setSelected(null);
       setQuery("");
+      setPendingPreset(null);
+      setPickingSlot(null);
+      setOrigin(start);
+      setOriginName(startName ?? "Origen");
       setDestination(last.point);
       setDestinationName(last.name);
       setPreset({ name: presetRoute.name, stops: labeled.map(({ letter, name }) => ({ letter, name })) });
@@ -942,6 +1039,8 @@ export function CampusMap() {
     setAssistantPrompt("");
     setAssistantError(null);
     setSelected(null);
+    setPendingPreset(null);
+    setPickingSlot(null);
     inject(`if (typeof window.clearRoute === 'function') window.clearRoute();`);
     inject(`if (typeof window.setEntranceMarkers === 'function') window.setEntranceMarkers([]);`);
   }, [inject]);
@@ -956,7 +1055,13 @@ export function CampusMap() {
       const toward = slot === "destination" ? origin : destination;
       const snapped = pointForBuilding(building, point, toward);
       setSelected(null);
+      setPickingSlot(null);
       const name = label ?? placeInfo(building, catalog).title;
+      const pending = pendingPresetRef.current;
+      if (slot === "origin" && pending) {
+        runPreset(pending, snapped, name);
+        return;
+      }
       const nextOrigin = slot === "origin" ? snapped : origin;
       const nextDestination = slot === "destination" ? snapped : destination;
       const nextOriginName = slot === "origin" ? name : originName;
@@ -981,7 +1086,7 @@ export function CampusMap() {
       syncMarkers(nextOrigin, nextDestination);
       clearRouteLine();
     },
-    [origin, destination, originName, destinationName, runRoute, syncMarkers, clearRouteLine, catalog],
+    [origin, destination, originName, destinationName, runRoute, runPreset, syncMarkers, clearRouteLine, catalog],
   );
 
   const clearSlot = useCallback(
@@ -994,6 +1099,7 @@ export function CampusMap() {
       setDestination(nextDestination);
       setRoute(null);
       setRouteError(null);
+      setPickingSlot(slot);
       activeSlotRef.current = slot;
       setActiveSlot(slot);
       syncMarkers(nextOrigin, nextDestination);
@@ -1044,12 +1150,20 @@ export function CampusMap() {
   const chooseSearchResult = useCallback(
     (place: CampusPlace) => {
       Keyboard.dismiss();
-      const toward = activeSlotRef.current === "destination" ? origin : destination;
-      assignPoint(activeSlotRef.current, place.point, place.building);
+      const slot = searchSlotRef.current ?? "destination";
+      const toward = slot === "destination" ? origin : destination;
+      assignPoint(slot, place.point, place.building);
       focusPlace(pointForBuilding(place.building, place.point, toward));
     },
     [assignPoint, focusPlace, origin, destination],
   );
+
+  const pickSlot = useCallback((slot: RouteSlot) => {
+    setQuery("");
+    setPickingSlot((current) => (current === slot ? null : slot));
+    activeSlotRef.current = slot;
+    setActiveSlot(slot);
+  }, []);
 
   const toggleView = useCallback(() => {
     const next = !view3d;
@@ -1093,16 +1207,31 @@ export function CampusMap() {
       setSelected(null);
       setCampusPickerOpen(false);
       setRelocatingEntranceId(null);
+      setPickingSlot(null);
+      setTab("map");
+      setQuery("");
+
+      const pending = pendingPresetRef.current;
+      if (pending && !outside) {
+        runPreset(pending, point, "Mi ubicación");
+        setStatus("");
+        return;
+      }
+
       setOrigin(point);
       setOriginName("Mi ubicación");
-      setQuery("");
-      // Solo muestra ubicación; no calcula ruta todavía.
       setRoute(null);
       setRouteError(null);
-      clearRouteLine();
-      syncMarkers(point, destination);
       activeSlotRef.current = "destination";
       setActiveSlot("destination");
+
+      if (destination && !outside) {
+        void runRoute(point, destination);
+        return;
+      }
+
+      clearRouteLine();
+      syncMarkers(point, destination);
 
       if (outside) {
         setStatus("Ubicación lista · elige Ir al campus");
@@ -1127,7 +1256,7 @@ export function CampusMap() {
         });
       }, 3200);
     }
-  }, [locating, routing, inject, destination, syncMarkers, clearRouteLine]);
+  }, [locating, routing, inject, destination, syncMarkers, clearRouteLine, runPreset, runRoute]);
 
   const toggleMockLocation = useCallback(() => {
     if (routing || assistantLoading) return;
@@ -1201,15 +1330,10 @@ export function CampusMap() {
     clearRouteLine,
   ]);
 
-  const openAssistant = useCallback(() => {
-    setAssistantError(null);
-    setAssistantOpen(true);
-  }, []);
-
   const closeAssistant = useCallback(() => {
     if (assistantLoading) return;
-    setAssistantOpen(false);
     setAssistantError(null);
+    setTab("map");
   }, [assistantLoading]);
 
   const submitAssistant = useCallback(async () => {
@@ -1298,7 +1422,9 @@ export function CampusMap() {
       setDestinationName(toName);
       setQuery("");
       setAssistantPrompt("");
-      setAssistantOpen(false);
+      setPendingPreset(null);
+      setPickingSlot(null);
+      setTab("map");
       activeSlotRef.current = "destination";
       setActiveSlot("destination");
       setStatus("");
@@ -1379,6 +1505,9 @@ export function CampusMap() {
           injectLayers();
         } else if (data.type === "ready") {
           setStatus("");
+          inject(
+            `if (typeof window.setChromeBottom === 'function') window.setChromeBottom(${Math.round(chromeBottomRef.current)});`,
+          );
         } else if (data.type === "view-mode") {
           setView3d(data.mode !== "2d");
         } else if (data.type === "map-click") {
@@ -1398,11 +1527,15 @@ export function CampusMap() {
               );
               return;
             }
-            const slot = activeSlotRef.current;
-            if (data.building) {
+            const slot = inTripRef.current && tabRef.current === "map" ? searchSlotRef.current : null;
+            if (slot) {
+              assignPoint(slot, point, data.building ?? null);
+            } else if (data.building) {
+              setCampusPickerOpen(false);
               showBuilding(point, data.building);
+              setTab("map");
             } else {
-              assignPoint(slot, point, null);
+              setSelected(null);
             }
           }
         } else if (data.type === "error") {
@@ -1412,8 +1545,118 @@ export function CampusMap() {
         // ignore
       }
     },
-    [injectLayers, assignPoint, showBuilding],
+    [injectLayers, assignPoint, showBuilding, inject],
   );
+
+  const startTour = useCallback(
+    (tour: PresetRoute) => {
+      setTab("map");
+      setSelected(null);
+      setCampusPickerOpen(false);
+      setPickingSlot(null);
+      if (origin) {
+        runPreset(tour);
+        return;
+      }
+      setRoute(null);
+      setRouteError(null);
+      setDestination(null);
+      setDestinationName(null);
+      syncMarkers(null, null);
+      clearRouteLine();
+      setPendingPreset(tour);
+      activeSlotRef.current = "origin";
+      setActiveSlot("origin");
+    },
+    [origin, runPreset, syncMarkers, clearRouteLine],
+  );
+
+  const stopName = useCallback(
+    (code: string) =>
+      catalog?.places[code]?.name ?? places.find((place) => place.code === code)?.title ?? code,
+    [catalog, places],
+  );
+
+  const inTrip = Boolean(origin || destination || preset || pendingPreset || campusPickerOpen);
+
+  const changeTab = useCallback((next: HomeTab) => {
+    setQuery("");
+    Keyboard.dismiss();
+
+    if (next === tab) {
+      if (tab === "assistant") {
+        closeAssistant();
+        return;
+      }
+      if (tab === "tours") {
+        setTab("map");
+        return;
+      }
+      if (selected) {
+        setSelected(null);
+        return;
+      }
+      if (inTrip) {
+        clearRouteUi();
+      }
+      return;
+    }
+
+    setTab(next);
+  }, [tab, selected, inTrip, closeAssistant, clearRouteUi]);
+
+  const searchSlot: RouteSlot | null = !inTrip
+    ? "destination"
+    : campusPickerOpen || preset
+      ? null
+      : pickingSlot ??
+        (!origin ? "origin" : !destination && !pendingPreset ? "destination" : null);
+  inTripRef.current = inTrip;
+  searchSlotRef.current = searchSlot;
+
+  const showSearch = tab === "map" && !selected && searchSlot != null;
+  const searchPlaceholder =
+    searchSlot === "origin"
+      ? "¿Desde dónde sales?"
+      : inTrip && destinationName
+        ? "Cambiar destino"
+        : "¿A dónde vas?";
+
+  const placePreview =
+    selectedInfo && selected
+      ? {
+          title: selectedInfo.title,
+          subtitle: selectedInfo.subtitle,
+          code: selectedInfo.code,
+          categories: selectedInfo.categories,
+          detail: selectedInfo.detail,
+        }
+      : null;
+  const lastPlacePreview = useRef(placePreview);
+  if (placePreview) lastPlacePreview.current = placePreview;
+
+  const exploreActive = tab === "map" && Boolean(placePreview);
+  const toursActive = tab === "tours";
+  const assistantActive = tab === "assistant";
+  const routeActive = tab === "map" && !placePreview && inTrip;
+  const anySheetActive = exploreActive || toursActive || assistantActive || routeActive;
+  const exploreSheet = useSheetPresence(exploreActive);
+  const toursSheet = useSheetPresence(toursActive);
+  const assistantSheet = useSheetPresence(assistantActive);
+  const routeSheet = useSheetPresence(routeActive);
+  const shownPlace = placePreview ?? (exploreSheet.mounted ? lastPlacePreview.current : null);
+
+  const tabBarHeight = homeTabBarHeight(insets.bottom);
+  const headerBlock = insets.top + (showSearch ? 72 : 16);
+  const sheetMaxHeight = Math.max(260, windowHeight - headerBlock - tabBarHeight - 72);
+  const chromeBottom = tabBarHeight + panelHeight;
+  chromeBottomRef.current = chromeBottom;
+
+  useEffect(() => {
+    inject(
+      `if (typeof window.setChromeBottom === 'function') window.setChromeBottom(${Math.round(chromeBottom)});`,
+    );
+  }, [chromeBottom, inject]);
 
   return (
     <View className="flex-1 bg-[#dbe4ee]">
@@ -1436,93 +1679,136 @@ export function CampusMap() {
       <MapHeader
         topInset={insets.top}
         status={status}
+        showSearch={showSearch}
         query={query}
         onQueryChange={setQuery}
         results={results}
         onSelectResult={chooseSearchResult}
-        activeSlot={activeSlot}
+        placeholder={searchPlaceholder}
+      />
+
+      <MapControls
+        top={insets.top + 8}
         view3d={view3d}
         onToggleView={toggleView}
         locating={locating}
         onLocate={locateMe}
-        onOpenAssistant={openAssistant}
-        assistantActive={assistantOpen || mockLocationActive}
-        presetRoutes={catalog?.routes ?? []}
-        onSelectPreset={runPreset}
       />
 
-      <AssistantSheet
-        visible={assistantOpen}
-        topInset={insets.top}
-        bottomInset={insets.bottom}
-        prompt={assistantPrompt}
-        onPromptChange={(value) => {
-          setAssistantPrompt(value);
-          if (assistantError) setAssistantError(null);
-        }}
-        onSubmit={() => {
-          void submitAssistant();
-        }}
-        onClose={closeAssistant}
-        loading={assistantLoading}
-        error={assistantError}
-        mockLocationActive={mockLocationActive}
-        onToggleMockLocation={toggleMockLocation}
-      />
+      {exploreSheet.mounted && shownPlace ? (
+        <ExploreSheet
+          bottomOffset={tabBarHeight}
+          maxHeight={Math.min(sheetMaxHeight, windowHeight * 0.5)}
+          place={shownPlace}
+          onClosePlace={() => setSelected(null)}
+          onUsePlace={useSelected}
+          onHeight={
+            exploreActive || (!anySheetActive && exploreSheet.mounted) ? setPanelHeight : undefined
+          }
+          visible={exploreSheet.visible}
+          onExited={exploreSheet.onExited}
+        />
+      ) : null}
 
-      <RouteSheet
-        bottomInset={insets.bottom}
-        activeSlot={activeSlot}
-        onSelectSlot={selectSlot}
-        originName={originName}
-        destinationName={destinationName}
-        onClearSlot={clearSlot}
-        onSwap={swapEndpoints}
-        onClearAll={clearRouteUi}
-        distanceLabel={route ? formatDistance(route.distanceM) : null}
-        durationLabel={
-          route?.durationS != null ? formatDuration(route.durationS) : null
-        }
-        routeMeta={
-          !route
-            ? null
-            : route.mode === "campus"
-              ? "a pie"
-              : [
-                  route.profile === "driving-car" ? "en carro" : "a pie",
-                  route.entrance ? `vía ${route.entrance.street}` : null,
-                ]
-                  .filter(Boolean)
-                  .join(" · ")
-        }
-        error={routeError}
-        place={
-          selectedInfo && selected
-            ? {
-                title: selectedInfo.title,
-                subtitle: selectedInfo.subtitle,
-                code: selectedInfo.code,
-                categories: selectedInfo.categories,
-                detail: selectedInfo.detail,
-              }
-            : null
-        }
-        onClosePlace={() => setSelected(null)}
-        onUsePlace={useSelected}
-        showGoToCampus={Boolean(userLocation && userOutsideCampus && !routing)}
-        campusPickerOpen={campusPickerOpen}
-        entrances={entrances}
-        relocatingEntranceId={relocatingEntranceId}
-        onOpenCampusPicker={openCampusPicker}
-        onCloseCampusPicker={closeCampusPicker}
-        onSelectEntrance={selectEntrance}
-        onRelocateEntrance={startRelocateEntrance}
-        routing={routing}
-        streetProfile={streetProfile}
-        onStreetProfileChange={setStreetProfile}
-        presetName={preset?.name ?? null}
-        presetStops={preset?.stops ?? null}
-      />
+      {toursSheet.mounted ? (
+        <ToursSheet
+          bottomOffset={tabBarHeight}
+          maxHeight={Math.min(sheetMaxHeight, windowHeight * 0.72)}
+          onHeight={
+            toursActive || (!anySheetActive && toursSheet.mounted) ? setPanelHeight : undefined
+          }
+          visible={toursSheet.visible}
+          onExited={toursSheet.onExited}
+          routes={catalog?.routes ?? []}
+          loading={!catalog}
+          activeName={preset?.name ?? pendingPreset?.name ?? null}
+          stopName={stopName}
+          onStart={startTour}
+        />
+      ) : null}
+
+      {assistantSheet.mounted ? (
+        <AssistantSheet
+          bottomOffset={tabBarHeight}
+          maxHeight={Math.min(440, sheetMaxHeight)}
+          prompt={assistantPrompt}
+          onPromptChange={(value) => {
+            setAssistantPrompt(value);
+            if (assistantError) setAssistantError(null);
+          }}
+          onSubmit={() => {
+            void submitAssistant();
+          }}
+          onClose={closeAssistant}
+          loading={assistantLoading}
+          error={assistantError}
+          mockLocationActive={mockLocationActive}
+          onToggleMockLocation={toggleMockLocation}
+          onHeight={
+            assistantActive || (!anySheetActive && assistantSheet.mounted)
+              ? setPanelHeight
+              : undefined
+          }
+          visible={assistantSheet.visible}
+          onExited={assistantSheet.onExited}
+        />
+      ) : null}
+
+      {routeSheet.mounted ? (
+        <RouteSheet
+          bottomOffset={tabBarHeight}
+          maxHeight={Math.min(sheetMaxHeight, windowHeight * 0.6)}
+          onHeight={
+            routeActive || (!anySheetActive && routeSheet.mounted) ? setPanelHeight : undefined
+          }
+          visible={routeSheet.visible}
+          onExited={routeSheet.onExited}
+          searchSlot={searchSlot}
+          onPickSlot={pickSlot}
+          originName={originName}
+          destinationName={destinationName}
+          onClearSlot={clearSlot}
+          onSwap={swapEndpoints}
+          onClose={clearRouteUi}
+          locating={locating}
+          onUseMyLocation={() => {
+            void locateMe();
+          }}
+          pendingPresetName={pendingPreset?.name ?? null}
+          distanceLabel={route ? formatDistance(route.distanceM) : null}
+          durationLabel={
+            route?.durationS != null ? formatDuration(route.durationS) : null
+          }
+          routeMeta={
+            !route
+              ? null
+              : route.mode === "campus"
+                ? "a pie"
+                : [
+                    route.profile === "driving-car" ? "en carro" : "a pie",
+                    route.entrance ? `vía ${route.entrance.street}` : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")
+          }
+          error={routeError}
+          showGoToCampus={Boolean(userLocation && userOutsideCampus && !routing)}
+          campusPickerOpen={campusPickerOpen}
+          entrances={entrances}
+          relocatingEntranceId={relocatingEntranceId}
+          onOpenCampusPicker={openCampusPicker}
+          onCloseCampusPicker={closeCampusPicker}
+          onSelectEntrance={selectEntrance}
+          onRelocateEntrance={startRelocateEntrance}
+          routing={routing}
+          streetProfile={streetProfile}
+          onStreetProfileChange={setStreetProfile}
+          presetName={preset?.name ?? null}
+          presetStops={preset?.stops ?? null}
+        />
+      ) : null}
+
+      <HomeTabs tab={tab} onChange={changeTab} bottomInset={insets.bottom} />
     </View>
   );
 }

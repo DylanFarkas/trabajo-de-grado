@@ -44,6 +44,7 @@ export type PresetRoute = {
   id: number;
   name: string;
   description: string | null;
+  imageUrl: string | null;
   stops: string[];
 };
 

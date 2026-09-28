@@ -6,77 +6,62 @@ import {
   TextInput,
   View,
 } from "react-native";
-import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 
-import type { CampusPlace, PresetRoute } from "@/places";
-import type { RouteSlot } from "@/components/RouteSheet";
+import type { CampusPlace } from "@/places";
 
 type MapHeaderProps = {
   topInset: number;
   status?: string;
+  showSearch?: boolean;
   query: string;
   onQueryChange: (value: string) => void;
   results: CampusPlace[];
   onSelectResult: (place: CampusPlace) => void;
-  activeSlot: RouteSlot;
-  view3d: boolean;
-  onToggleView: () => void;
-  locating?: boolean;
-  onLocate?: () => void;
-  onOpenAssistant?: () => void;
-  assistantActive?: boolean;
-  presetRoutes?: PresetRoute[];
-  onSelectPreset?: (route: PresetRoute) => void;
+  placeholder: string;
 };
 
 export function MapHeader({
   topInset,
   status,
+  showSearch = true,
   query,
   onQueryChange,
   results,
   onSelectResult,
-  activeSlot,
-  view3d,
-  onToggleView,
-  locating = false,
-  onLocate,
-  onOpenAssistant,
-  assistantActive = false,
-  presetRoutes = [],
-  onSelectPreset,
+  placeholder,
 }: MapHeaderProps) {
   const loading = Boolean(status);
-  const showResults = query.trim().length > 0;
-  const slotLabel = activeSlot === "origin" ? "origen" : "destino";
+  const showResults = showSearch && query.trim().length > 0;
+
+  if (!showSearch && !loading) return null;
 
   return (
-    <View className="absolute left-4 right-4 z-40" style={{ top: topInset + 8 }}>
-      <View className="flex-row items-center">
-        <View
-          className="mr-2 size-12 items-center justify-center rounded-full bg-[#111111] shadow-lg"
-          accessibilityLabel="Universidad del Valle"
-        >
-          <Text className="text-[13px] font-extrabold tracking-wide text-white">UV</Text>
-        </View>
-
-        <View className="mr-2 h-12 min-w-0 flex-1 flex-row items-center overflow-hidden rounded-full bg-white pl-3.5 pr-2 shadow-lg">
-          <View className="mr-2 size-3.5 rounded-full border-2 border-[#8e8e93]">
-            <View className="absolute -bottom-px -right-1.25 h-0.5 w-1.5 rotate-45 rounded-sm bg-[#8e8e93]" />
+    <View
+      className="absolute left-4 right-4 z-40"
+      style={{ top: topInset + 8 }}
+      pointerEvents="box-none"
+    >
+      {showSearch ? (
+        <View className="mr-26 h-12 min-w-0 flex-row items-center overflow-hidden rounded-full bg-white pl-1.5 pr-2 shadow-lg">
+          <View
+            className="mr-3 size-9 items-center justify-center rounded-full bg-[#111111]"
+            accessibilityLabel="Universidad del Valle"
+          >
+            <Text className="text-[11px] font-extrabold tracking-wide text-white">UV</Text>
           </View>
           <TextInput
             value={query}
             onChangeText={onQueryChange}
-            placeholder={activeSlot === "origin" ? "Buscar origen" : "Buscar destino"}
+            placeholder={placeholder}
             placeholderTextColor="#8e8e93"
-            className="h-12 min-w-0 flex-1 text-base text-[#111111]"
+            className="h-12 min-w-0 flex-1 font-sans text-base text-[#111111]"
             style={{ paddingVertical: 0, paddingHorizontal: 0, margin: 0, includeFontPadding: false }}
             autoCorrect={false}
             autoCapitalize="none"
             returnKeyType="search"
             clearButtonMode="while-editing"
             underlineColorAndroid="transparent"
-            accessibilityLabel={activeSlot === "origin" ? "Buscar origen" : "Buscar destino"}
+            accessibilityLabel={placeholder}
           />
           {query.length > 0 ? (
             <Pressable
@@ -92,102 +77,6 @@ export function MapHeader({
             </Pressable>
           ) : null}
         </View>
-
-        {onOpenAssistant ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Abrir asistente de rutas"
-            onPress={onOpenAssistant}
-            className="mr-2 active:opacity-80"
-          >
-            <View
-              className={`size-10.5 shrink-0 items-center justify-center rounded-full shadow-md ${
-                assistantActive ? "bg-[#111111]" : "bg-white"
-              }`}
-            >
-              <MaterialIcons
-                name="auto-awesome"
-                size={20}
-                color={assistantActive ? "#ffffff" : "#111111"}
-              />
-            </View>
-          </Pressable>
-        ) : null}
-
-        {onLocate ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Detectar mi ubicación"
-            disabled={locating}
-            onPress={onLocate}
-            className="mr-2 active:opacity-80"
-          >
-            <View
-              className={`size-10.5 shrink-0 items-center justify-center rounded-full shadow-md ${
-                locating ? "bg-[#111111]" : "bg-white"
-              }`}
-            >
-              {locating ? (
-                <ActivityIndicator size="small" color="#ffffff" />
-              ) : (
-                <View className="size-4.5 items-center justify-center">
-                  <View className="absolute size-4 rounded-full border-2 border-[#111111]" />
-                  <View className="size-1.5 rounded-full bg-[#111111]" />
-                </View>
-              )}
-            </View>
-          </Pressable>
-        ) : null}
-
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={view3d ? "Cambiar a vista 2D" : "Cambiar a vista 3D"}
-          onPress={onToggleView}
-          className="active:opacity-80"
-        >
-          <View
-            className={`size-10.5 shrink-0 items-center justify-center rounded-full shadow-md ${
-              view3d ? "bg-[#111111]" : "bg-white"
-            }`}
-          >
-            <Text
-              className={`text-[13px] font-extrabold tracking-wide ${
-                view3d ? "text-white" : "text-[#111111]"
-              }`}
-            >
-              {view3d ? "3D" : "2D"}
-            </Text>
-          </View>
-        </Pressable>
-      </View>
-
-      {!showResults && onSelectPreset ? (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          className="mt-2"
-          contentContainerClassName="gap-2"
-        >
-          {presetRoutes.length === 0 ? (
-            <View className="rounded-full bg-white px-4 py-2 shadow-md">
-              <Text className="text-sm font-semibold text-[#8e8e93]">Sin rutas publicadas</Text>
-            </View>
-          ) : (
-            presetRoutes.map((route) => (
-              <Pressable
-                key={route.id}
-                accessibilityRole="button"
-                accessibilityLabel={`Recorrer ${route.name}`}
-                onPress={() => onSelectPreset(route)}
-                className="active:opacity-80"
-              >
-                <View className="rounded-full bg-white px-4 py-2 shadow-md">
-                  <Text className="text-sm font-semibold text-[#111111]">{route.name}</Text>
-                </View>
-              </Pressable>
-            ))
-          )}
-        </ScrollView>
       ) : null}
 
       {loading && !showResults ? (
@@ -198,12 +87,9 @@ export function MapHeader({
       ) : null}
 
       {showResults ? (
-        <View className="mt-2 overflow-hidden rounded-[22px] bg-white pb-2 shadow-[0_16px_36px_rgba(17,17,17,0.16)]">
-          <Text className="px-4.5 pb-2.5 pt-4 text-sm font-medium text-[#8e8e93]">
-            Toca un lugar para usarlo como {slotLabel}
-          </Text>
+        <View className="mt-2 overflow-hidden rounded-[22px] bg-white py-2 shadow-[0_16px_36px_rgba(17,17,17,0.16)]">
           {results.length === 0 ? (
-            <Text className="px-4.5 pb-3 text-[15px] text-[#3a3a3c]">
+            <Text className="px-4 py-3 font-sans text-[15px] text-[#3a3a3c]">
               No hay edificios con ese nombre
             </Text>
           ) : (
@@ -212,13 +98,13 @@ export function MapHeader({
                 <Pressable
                   key={place.id}
                   accessibilityRole="button"
-                  accessibilityLabel={`${place.title}. Usar como ${slotLabel}`}
+                  accessibilityLabel={place.title}
                   onPress={() => onSelectResult(place)}
-                  className="px-3.5 py-1"
+                  className="px-2"
                 >
                   {({ pressed }) => (
                     <View
-                      className={`w-full flex-row items-center rounded-[14px] px-2.5 py-2.5 ${
+                      className={`w-full flex-row items-center rounded-2xl px-2 py-2 ${
                         pressed ? "bg-[#f5f5f7]" : ""
                       }`}
                     >
@@ -231,7 +117,7 @@ export function MapHeader({
                         <Text className="text-base font-semibold text-[#111111]" numberOfLines={1}>
                           {place.title}
                         </Text>
-                        <Text className="mt-0.75 text-[13px] text-[#8e8e93]" numberOfLines={1}>
+                        <Text className="mt-0.5 font-sans text-[13px] text-[#8e8e93]" numberOfLines={1}>
                           {place.categories[0] ?? "Campus"}
                         </Text>
                       </View>

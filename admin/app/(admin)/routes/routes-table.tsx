@@ -8,6 +8,7 @@ import { StatusPill } from "@/components/catalog/status-pill";
 export type RouteRow = {
   id: number;
   name: string;
+  imageUrl: string | null;
   published: boolean;
   stops: number;
 };
@@ -16,7 +17,19 @@ const columns: ColumnDef<RouteRow, unknown>[] = [
   {
     accessorKey: "name",
     header: "Nombre",
-    cell: ({ getValue }) => <span className="font-medium text-zinc-900 dark:text-zinc-50">{String(getValue())}</span>,
+    cell: ({ row }) => (
+      <span className="flex items-center gap-3">
+        <span className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-zinc-100 dark:bg-zinc-800">
+          {row.original.imageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img alt="" className="size-full object-contain" src={row.original.imageUrl} />
+          ) : (
+            <span className="text-[10px] font-medium text-zinc-400">—</span>
+          )}
+        </span>
+        <span className="font-medium text-zinc-900 dark:text-zinc-50">{row.original.name}</span>
+      </span>
+    ),
   },
   {
     accessorKey: "stops",

@@ -19,7 +19,7 @@ export default async function NewRoutePage() {
         subtitle="Crea una nueva ruta personalizada."
       />
       <QueryError message={error?.message} />
-      <RouteForm name="" description="" published={false} stopIds={[]} places={places ?? []} />
+      <RouteForm name="" description="" imageUrl={null} published={false} stopIds={[]} places={places ?? []} />
     </>
   );
 }

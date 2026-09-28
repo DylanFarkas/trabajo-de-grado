@@ -5,7 +5,6 @@ alter table public.categories drop constraint categories_tone_check;
 alter table public.categories
   add constraint categories_tone_check
   check (tone in ('food', 'sport', 'library', 'culture', 'academic'));
-
 insert into public.categories (id, name, tone, sort_order)
 values
   ('biblioteca', 'Biblioteca', 'library', 1),
@@ -33,7 +32,6 @@ values
   ('ingenieria_sistemas', 'Ingeniería de sistemas y computación', 'academic', 28),
   ('musica', 'Música', 'academic', 29)
 on conflict (id) do nothing;
-
 insert into public.place_categories (place_id, category_id)
 values
   ('B13', 'ingenieria_sistemas'),

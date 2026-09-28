@@ -3,13 +3,13 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { supabase } from "@/supabase";
 import type { CampusCatalog, CatalogTone, CategoryRecord, PlaceRecord, PresetRoute } from "@/places";
 
-const STORAGE_KEY = "campus-catalog-v1";
+const STORAGE_KEY = "campus-catalog-v2";
 const TONES = new Set<CatalogTone>(["food", "sport", "library", "culture", "academic"]);
 
 type PlaceRow = { id: string; name: string; description: string | null };
 type CategoryRow = { id: string; name: string; tone: string; sort_order: number };
 type AssignmentRow = { place_id: string; category_id: string };
-type RouteRow = { id: number; name: string; description: string | null };
+type RouteRow = { id: number; name: string; description: string | null; image_url: string | null };
 type StopRow = { route_id: number; place_id: string; position: number };
 
 function asTone(value: string): CatalogTone | null {
@@ -35,7 +35,7 @@ export async function refreshCatalog(): Promise<CampusCatalog | null> {
     supabase.from("places").select("id, name, description"),
     supabase.from("categories").select("id, name, tone, sort_order").eq("active", true),
     supabase.from("place_categories").select("place_id, category_id"),
-    supabase.from("routes").select("id, name, description").eq("published", true).order("name"),
+    supabase.from("routes").select("id, name, description, image_url").eq("published", true).order("name"),
     supabase.from("route_stops").select("route_id, place_id, position").order("position"),
   ]);
 
@@ -91,6 +91,7 @@ export async function refreshCatalog(): Promise<CampusCatalog | null> {
     id: row.id,
     name: row.name,
     description: row.description,
+    imageUrl: row.image_url ?? null,
     stops: (stopsByRoute.get(row.id) ?? [])
       .sort((a, b) => a.position - b.position)
       .map((stop) => stop.place_id),
