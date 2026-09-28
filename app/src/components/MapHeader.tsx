@@ -18,7 +18,6 @@ type MapHeaderProps = {
   results: CampusPlace[];
   onSelectResult: (place: CampusPlace) => void;
   placeholder: string;
-  endInset?: number;
 };
 
 export function MapHeader({
@@ -30,7 +29,6 @@ export function MapHeader({
   results,
   onSelectResult,
   placeholder,
-  endInset = 16,
 }: MapHeaderProps) {
   const loading = Boolean(status);
   const showResults = showSearch && query.trim().length > 0;
@@ -39,12 +37,12 @@ export function MapHeader({
 
   return (
     <View
-      className="absolute left-4 z-40"
-      style={{ top: topInset + 8, right: endInset }}
+      className="absolute left-4 right-4 z-40"
+      style={{ top: topInset + 8 }}
       pointerEvents="box-none"
     >
       {showSearch ? (
-        <View className="h-12 min-w-0 flex-row items-center overflow-hidden rounded-full bg-white pl-1.5 pr-2 shadow-lg">
+        <View className="mr-26 h-12 min-w-0 flex-row items-center overflow-hidden rounded-full bg-white pl-1.5 pr-2 shadow-lg">
           <View
             className="mr-3 size-9 items-center justify-center rounded-full bg-[#111111]"
             accessibilityLabel="Universidad del Valle"

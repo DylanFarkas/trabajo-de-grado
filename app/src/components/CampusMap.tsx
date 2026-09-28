@@ -43,7 +43,7 @@ import { MapHeader } from "@/components/MapHeader";
 import { AssistantSheet } from "@/components/AssistantSheet";
 import { ExploreSheet } from "@/components/ExploreSheet";
 import { HomeTabs, homeTabBarHeight, type HomeTab } from "@/components/HomeTabs";
-import { MapControls, MAP_CONTROLS_WIDTH } from "@/components/MapControls";
+import { MapControls } from "@/components/MapControls";
 import { RouteSheet, type RouteSlot } from "@/components/RouteSheet";
 import { useSheetPresence } from "@/components/SnapSheet";
 import { ToursSheet } from "@/components/ToursSheet";
@@ -397,6 +397,9 @@ function buildMapHtml(): string {
       [
         'buildings-labels', 'buildings-3d', 'buildings-footprint', 'buildings-hit',
         'paths-line', 'paths-mid', 'paths-casing', 'paths-glow',
+        'service-line', 'service-casing',
+        'foot-line', 'foot-casing',
+        'steps-line',
         'pasillos-line', 'pasillos-casing'
       ].forEach(function (id) {
         if (map.getLayer(id)) map.removeLayer(id);
@@ -406,34 +409,92 @@ function buildMapHtml(): string {
       if (map.getSource('pasillos')) map.removeSource('pasillos');
 
       const beforeId = firstSymbolLayerId();
+      [
+        'road_path_pedestrian',
+        'tunnel_path_pedestrian',
+        'bridge_path_pedestrian',
+        'bridge_path_pedestrian_casing'
+      ].forEach(function (id) {
+        if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', 'none');
+      });
+      const serviceFilter = ['==', ['get', 'highway'], 'service'];
+      const footFilter = ['match', ['get', 'highway'], ['footway', 'path', 'pedestrian', 'bridleway'], true, false];
+      const stepsFilter = ['==', ['get', 'highway'], 'steps'];
 
       map.addSource('paths', { type: 'geojson', data: paths });
       map.addLayer({
-        id: 'paths-casing', type: 'line', source: 'paths',
+        id: 'service-casing', type: 'line', source: 'paths',
+        filter: serviceFilter,
         layout: { 'line-cap': 'round', 'line-join': 'round' },
         paint: {
-          'line-color': '#6f7f6a',
+          'line-color': '#cfcdca',
           'line-width': [
             'interpolate', ['linear'], ['zoom'],
-            15, 2.2,
-            17, 4.0,
-            19, 5.5
-          ],
-          'line-opacity': 0.38
+            15, 2.4,
+            17, 5.2,
+            19, 8.5
+          ]
         }
       }, beforeId);
       map.addLayer({
-        id: 'paths-line', type: 'line', source: 'paths',
+        id: 'service-line', type: 'line', source: 'paths',
+        filter: serviceFilter,
         layout: { 'line-cap': 'round', 'line-join': 'round' },
         paint: {
-          'line-color': '#9aab92',
+          'line-color': '#ffffff',
           'line-width': [
             'interpolate', ['linear'], ['zoom'],
             15, 1.4,
-            17, 2.6,
-            19, 3.6
+            17, 3.4,
+            19, 6
+          ]
+        }
+      }, beforeId);
+      map.addLayer({
+        id: 'foot-casing', type: 'line', source: 'paths',
+        filter: footFilter,
+        layout: { 'line-cap': 'butt', 'line-join': 'round' },
+        paint: {
+          'line-color': '#d07c72',
+          'line-dasharray': [2, 1.5],
+          'line-width': [
+            'interpolate', ['linear'], ['zoom'],
+            15, 1.8,
+            17, 3.0,
+            19, 4.0
           ],
-          'line-opacity': 0.72
+          'line-opacity': 0.9
+        }
+      }, beforeId);
+      map.addLayer({
+        id: 'foot-line', type: 'line', source: 'paths',
+        filter: footFilter,
+        layout: { 'line-cap': 'butt', 'line-join': 'round' },
+        paint: {
+          'line-color': '#f4a89a',
+          'line-dasharray': [2, 1.5],
+          'line-width': [
+            'interpolate', ['linear'], ['zoom'],
+            15, 1.2,
+            17, 2.2,
+            19, 3.0
+          ],
+          'line-opacity': 0.98
+        }
+      }, beforeId);
+      map.addLayer({
+        id: 'steps-line', type: 'line', source: 'paths',
+        filter: stepsFilter,
+        layout: { 'line-cap': 'butt', 'line-join': 'round' },
+        paint: {
+          'line-color': '#e0897c',
+          'line-dasharray': [0.5, 0.4],
+          'line-width': [
+            'interpolate', ['linear'], ['zoom'],
+            15, 1.6,
+            17, 2.6,
+            19, 3.4
+          ]
         }
       }, beforeId);
 
@@ -1487,12 +1548,6 @@ export function CampusMap() {
     [injectLayers, assignPoint, showBuilding, inject],
   );
 
-  const changeTab = useCallback((next: HomeTab) => {
-    setTab(next);
-    setQuery("");
-    Keyboard.dismiss();
-  }, []);
-
   const startTour = useCallback(
     (tour: PresetRoute) => {
       setTab("map");
@@ -1523,6 +1578,33 @@ export function CampusMap() {
   );
 
   const inTrip = Boolean(origin || destination || preset || pendingPreset || campusPickerOpen);
+
+  const changeTab = useCallback((next: HomeTab) => {
+    setQuery("");
+    Keyboard.dismiss();
+
+    if (next === tab) {
+      if (tab === "assistant") {
+        closeAssistant();
+        return;
+      }
+      if (tab === "tours") {
+        setTab("map");
+        return;
+      }
+      if (selected) {
+        setSelected(null);
+        return;
+      }
+      if (inTrip) {
+        clearRouteUi();
+      }
+      return;
+    }
+
+    setTab(next);
+  }, [tab, selected, inTrip, closeAssistant, clearRouteUi]);
+
   const searchSlot: RouteSlot | null = !inTrip
     ? "destination"
     : campusPickerOpen || preset
@@ -1603,7 +1685,6 @@ export function CampusMap() {
         results={results}
         onSelectResult={chooseSearchResult}
         placeholder={searchPlaceholder}
-        endInset={MAP_CONTROLS_WIDTH}
       />
 
       <MapControls

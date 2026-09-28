@@ -52,6 +52,21 @@
           865132.415006
         ]
       }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id_entrada": 4,
+        "edificio": "D17",
+        "name": "Entrada D17"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          1060473.571834,
+          864601.224776
+        ]
+      }
     }
   ]
 }

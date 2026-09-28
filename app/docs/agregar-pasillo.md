@@ -114,3 +114,4 @@ Si la distancia no cambia y la geometría tampoco pasa por ahí, el extremo no e
 | 8 | Enlace camino sur lenguas | 26 m | Punto sobre la vía de servicio y nodo final del camino curvo del sur |
 | 9 | Enlace peatonal oeste lenguas | 10 m | Nodo sur del peatonal oeste de lenguas y corte de la vía de servicio |
 | 10 | Sendero B23 | 139 m | Nodo del camino peatonal del B13, en la esquina sureste del B23, y corte de la vía de servicio al oeste. La línea sigue recta el costado este y, en escuadra, el norte del edificio |
+| 11 | Sendero Coliseo D17 | 86 m | Nodo del sendero en la fachada norte del coliseo (D17) y corte del andén de Zona C — Centro Deportivo Universitario, al este. La línea sigue el norte, baja por el este junto a la puerta y engancha el andén |

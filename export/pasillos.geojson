@@ -315,6 +315,40 @@
           ]
         ]
       }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id_pasillo": 11,
+        "name": "Sendero Coliseo D17",
+        "edificio": null,
+        "highway": "footway",
+        "covered": null,
+        "tunnel": null,
+        "oneway": null,
+        "longitud_m": 86.01748480112292
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            1060429.141258177,
+            864634.9628717838
+          ],
+          [
+            1060473.5718338445,
+            864634.9628717838
+          ],
+          [
+            1060473.5718338445,
+            864601.2247764937
+          ],
+          [
+            1060481.4206476882,
+            864601.2247764937
+          ]
+        ]
+      }
     }
   ]
 }
