@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { getSessionProfile } from "@/lib/auth";
 import { isKind, isTone } from "@/lib/catalog";
+import { deleteRouteImage, uploadRouteImage } from "@/lib/cloudinary";
 import { createClient } from "@/lib/supabase/server";
 
 async function adminClient() {
@@ -203,6 +204,18 @@ async function replaceStops(
   if (insertError) throw new Error(insertError.message);
 }
 
+async function nextImageUrl(routeId: number, formData: FormData) {
+  const file = formData.get("image");
+  if (file instanceof File && file.size > 0) {
+    return uploadRouteImage(routeId, file);
+  }
+  if (formData.get("remove_image") === "on") {
+    await deleteRouteImage(routeId);
+    return null;
+  }
+  return undefined;
+}
+
 export async function saveRoute(formData: FormData) {
   const supabase = await adminClient();
   const fields = routeFields(formData);
@@ -234,6 +247,12 @@ export async function saveRoute(formData: FormData) {
     if (error) throw new Error(error.message);
   }
 
+  const imageUrl = await nextImageUrl(routeId, formData);
+  if (imageUrl !== undefined) {
+    const { error } = await supabase.from("routes").update({ image_url: imageUrl }).eq("id", routeId);
+    if (error) throw new Error(error.message);
+  }
+
   await replaceStops(supabase, routeId, fields.placeIds);
   revalidatePath("/routes");
   revalidatePath(`/routes/${routeId}`);
@@ -244,6 +263,7 @@ export async function deleteRoute(formData: FormData) {
   const supabase = await adminClient();
   const routeId = Number(formData.get("id"));
   if (!Number.isFinite(routeId)) throw new Error("La ruta no existe.");
+  await deleteRouteImage(routeId);
   const { error } = await supabase.from("routes").delete().eq("id", routeId);
   if (error) throw new Error(error.message);
   revalidatePath("/routes");

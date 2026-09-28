@@ -1713,7 +1713,7 @@ export function CampusMap() {
       {toursSheet.mounted ? (
         <ToursSheet
           bottomOffset={tabBarHeight}
-          maxHeight={Math.min(sheetMaxHeight, windowHeight * 0.62)}
+          maxHeight={Math.min(sheetMaxHeight, windowHeight * 0.72)}
           onHeight={
             toursActive || (!anySheetActive && toursSheet.mounted) ? setPanelHeight : undefined
           }

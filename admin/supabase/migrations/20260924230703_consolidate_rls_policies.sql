@@ -13,7 +13,6 @@ create policy categories_select_authenticated
   for select
   to authenticated
   using (active or (select private.is_admin()));
-
 drop policy place_categories_public_read on public.place_categories;
 drop policy place_categories_admin_read on public.place_categories;
 create policy place_categories_select_anon
@@ -41,7 +40,6 @@ create policy place_categories_select_authenticated
         and categories.active
     )
   );
-
 drop policy contributions_public_read on public.contributions;
 drop policy contributions_author_read on public.contributions;
 drop policy contributions_admin_read on public.contributions;
@@ -59,7 +57,6 @@ create policy contributions_select_authenticated
     or author_id = (select auth.uid())
     or (select private.is_admin())
   );
-
 drop policy contributions_author_update on public.contributions;
 drop policy contributions_admin_update on public.contributions;
 create policy contributions_update
@@ -81,7 +78,6 @@ create policy contributions_update
       and reviewer_id is null
     )
   );
-
 drop policy routes_public_read on public.routes;
 drop policy routes_admin_read on public.routes;
 create policy routes_select_anon
@@ -94,7 +90,6 @@ create policy routes_select_authenticated
   for select
   to authenticated
   using (published or (select private.is_admin()));
-
 drop policy route_stops_public_read on public.route_stops;
 drop policy route_stops_admin_read on public.route_stops;
 create policy route_stops_select_anon

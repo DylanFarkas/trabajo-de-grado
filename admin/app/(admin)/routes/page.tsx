@@ -10,7 +10,7 @@ export default async function RoutesPage() {
   const supabase = await createClient();
   const { data: routes, error } = await supabase
     .from("routes")
-    .select("id, name, published, route_stops(place_id)")
+    .select("id, name, image_url, published, route_stops(place_id)")
     .order("name");
 
   return (
@@ -29,6 +29,7 @@ export default async function RoutesPage() {
         routes={(routes ?? []).map((route) => ({
           id: route.id,
           name: route.name,
+          imageUrl: route.image_url,
           published: route.published,
           stops: Array.isArray(route.route_stops) ? route.route_stops.length : 0,
         }))}

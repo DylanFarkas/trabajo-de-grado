@@ -1,5 +1,7 @@
+import { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import { Image } from "expo-image";
 
 import { SnapSheet } from "@/components/SnapSheet";
 import type { PresetRoute } from "@/places";
@@ -17,7 +19,39 @@ type ToursSheetProps = {
   onStart: (route: PresetRoute) => void;
 };
 
-const PREVIEW_STOPS = 3;
+const LIST_THUMB = 72;
+const DETAIL_THUMB = 112;
+
+function RouteThumb({
+  uri,
+  size,
+  active = false,
+}: {
+  uri: string | null;
+  size: number;
+  active?: boolean;
+}) {
+  if (uri) {
+    return (
+      <Image
+        accessibilityIgnoresInvertColors
+        contentFit="contain"
+        source={{ uri }}
+        style={{ width: size, height: size }}
+        transition={150}
+      />
+    );
+  }
+
+  return (
+    <View
+      className={`items-center justify-center rounded-2xl ${active ? "bg-white/15" : "bg-white"}`}
+      style={{ width: size, height: size }}
+    >
+      <MaterialIcons name="route" size={Math.round(size * 0.35)} color={active ? "#ffffff" : "#8e8e93"} />
+    </View>
+  );
+}
 
 export function ToursSheet({
   bottomOffset,
@@ -31,6 +65,14 @@ export function ToursSheet({
   stopName,
   onStart,
 }: ToursSheetProps) {
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const selected = routes.find((route) => route.id === selectedId) ?? null;
+  const selectedActive = selected != null && activeName === selected.name;
+
+  useEffect(() => {
+    if (visible) setSelectedId(null);
+  }, [visible]);
+
   return (
     <SnapSheet
       bottomOffset={bottomOffset}
@@ -38,27 +80,113 @@ export function ToursSheet({
       onHeight={onHeight}
       visible={visible}
       onExited={onExited}
-      header={({ expanded, toggle }) => (
-        <View className="flex-row items-start">
-          <Pressable accessible={false} onPress={toggle} className="min-w-0 flex-1 active:opacity-70">
-            <Text className="text-[22px] font-extrabold tracking-tight text-[#111111]">
-              Recorridos
-            </Text>
-            <Text className="mt-1 mb-3 font-sans text-sm text-[#8e8e93]">Rutas preparadas por la universidad</Text>
-          </Pressable>
+      header={({ expanded, toggle }) =>
+        selected ? (
+          <View className="flex-row items-start">
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Volver a recorridos"
+              onPress={() => setSelectedId(null)}
+              hitSlop={8}
+              className="mr-2 size-8 items-center justify-center rounded-full bg-[#f2f2f4] active:opacity-80"
+            >
+              <MaterialIcons name="arrow-back" size={18} color="#111111" />
+            </Pressable>
+            <Pressable accessible={false} onPress={toggle} className="mr-2 min-w-0 flex-1 active:opacity-70">
+              <Text className="text-lg font-bold leading-6 tracking-tight text-[#111111]" numberOfLines={2}>
+                {selected.name}
+              </Text>
+              <Text className="mt-0.5 mb-3 font-sans text-sm text-[#8e8e93]">
+                {selected.stops.length} {selected.stops.length === 1 ? "parada" : "paradas"}
+                {selectedActive ? " · En curso" : ""}
+              </Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={expanded ? "Minimizar recorrido" : "Mostrar recorrido"}
+              onPress={toggle}
+              hitSlop={6}
+              className="size-8 items-center justify-center rounded-full bg-[#f2f2f4] active:opacity-80"
+            >
+              <MaterialIcons name={expanded ? "expand-more" : "expand-less"} size={20} color="#3a3a3c" />
+            </Pressable>
+          </View>
+        ) : (
+          <View className="flex-row items-start">
+            <Pressable accessible={false} onPress={toggle} className="min-w-0 flex-1 active:opacity-70">
+              <Text className="text-[22px] font-extrabold tracking-tight text-[#111111]">Recorridos</Text>
+              <Text className="mt-1 mb-3 font-sans text-sm text-[#8e8e93]">
+                Rutas preparadas por la universidad
+              </Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={expanded ? "Minimizar recorridos" : "Mostrar recorridos"}
+              onPress={toggle}
+              hitSlop={6}
+              className="ml-2 size-8 items-center justify-center rounded-full bg-[#f2f2f4] active:opacity-80"
+            >
+              <MaterialIcons name={expanded ? "expand-more" : "expand-less"} size={20} color="#3a3a3c" />
+            </Pressable>
+          </View>
+        )
+      }
+    >
+      {selected ? (
+        <View>
+          <View className="items-center">
+            <RouteThumb uri={selected.imageUrl} size={DETAIL_THUMB} />
+          </View>
+          {selected.description ? (
+            <Text className="mt-4 font-sans text-[15px] leading-6 text-[#3a3a3c]">{selected.description}</Text>
+          ) : null}
+
+          <Text className="mt-5 mb-3 text-[13px] font-bold uppercase tracking-wide text-[#8e8e93]">
+            Lugares del recorrido
+          </Text>
+          {selected.stops.map((code, index) => {
+            const last = index === selected.stops.length - 1;
+            return (
+              <View key={`${code}-${index}`} className="flex-row">
+                <View className="mr-3 items-center">
+                  <View
+                    className={`size-7 items-center justify-center rounded-full ${
+                      last ? "bg-[#1d4ed8]" : "bg-[#111111]"
+                    }`}
+                  >
+                    <Text className="text-xs font-bold text-white">{index + 1}</Text>
+                  </View>
+                  {!last ? <View className="w-0.5 flex-1 bg-[#e0e0e5]" /> : null}
+                </View>
+                <Text
+                  className="min-w-0 flex-1 pb-4 pt-1 text-[15px] font-semibold text-[#111111]"
+                  numberOfLines={2}
+                >
+                  {stopName(code)}
+                </Text>
+              </View>
+            );
+          })}
+
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={expanded ? "Minimizar recorridos" : "Mostrar recorridos"}
-            onPress={toggle}
-            hitSlop={6}
-            className="ml-2 size-8 items-center justify-center rounded-full bg-[#f2f2f4] active:opacity-80"
+            accessibilityLabel={selectedActive ? `Continuar recorrido ${selected.name}` : `Iniciar recorrido ${selected.name}`}
+            onPress={() => onStart(selected)}
+            className={`mt-2 h-12 flex-row items-center justify-center rounded-2xl active:opacity-80 ${
+              selectedActive ? "bg-[#f2f2f4]" : "bg-[#111111]"
+            }`}
           >
-            <MaterialIcons name={expanded ? "expand-more" : "expand-less"} size={20} color="#3a3a3c" />
+            <MaterialIcons
+              name={selectedActive ? "near-me" : "play-arrow"}
+              size={20}
+              color={selectedActive ? "#111111" : "#ffffff"}
+            />
+            <Text className={`ml-1 text-[15px] font-bold ${selectedActive ? "text-[#111111]" : "text-white"}`}>
+              {selectedActive ? "En curso" : "Iniciar"}
+            </Text>
           </Pressable>
         </View>
-      )}
-    >
-      {loading && routes.length === 0 ? (
+      ) : loading && routes.length === 0 ? (
         <View className="items-center py-8">
           <ActivityIndicator size="small" color="#111111" />
           <Text className="mt-2 font-sans text-sm text-[#8e8e93]">Cargando recorridos…</Text>
@@ -77,65 +205,28 @@ export function ToursSheet({
         <View>
           {routes.map((route) => {
             const active = activeName === route.name;
-            const names = route.stops.map(stopName);
-            const preview = names.slice(0, PREVIEW_STOPS);
-            const extra = names.length - preview.length;
             return (
               <Pressable
                 key={route.id}
                 accessibilityRole="button"
-                accessibilityLabel={`Iniciar recorrido ${route.name}, ${route.stops.length} paradas`}
-                onPress={() => onStart(route)}
-                className={`mb-3 rounded-[20px] p-4 active:opacity-80 ${
+                accessibilityLabel={`Ver recorrido ${route.name}`}
+                onPress={() => setSelectedId(route.id)}
+                className={`mb-3 flex-row items-center rounded-[20px] p-3 active:opacity-80 ${
                   active ? "bg-[#111111]" : "bg-[#f7f7f8]"
                 }`}
               >
-                <View className="flex-row items-start">
-                  <View className="mr-3 min-w-0 flex-1">
-                    <Text
-                      className={`text-base font-bold ${active ? "text-white" : "text-[#111111]"}`}
-                      numberOfLines={1}
-                    >
-                      {route.name}
-                    </Text>
-                    {route.description ? (
-                      <Text
-                        className={`mt-1 font-sans text-[13px] leading-5 ${
-                          active ? "text-white/70" : "text-[#6b6b70]"
-                        }`}
-                        numberOfLines={2}
-                      >
-                        {route.description}
-                      </Text>
-                    ) : null}
-                  </View>
-                  <View className={`rounded-full px-3 py-1 ${active ? "bg-white/15" : "bg-white"}`}>
-                    <Text className={`text-xs font-bold ${active ? "text-white" : "text-[#111111]"}`}>
-                      {route.stops.length} paradas
-                    </Text>
-                  </View>
-                </View>
-
-                <View className="mt-3 flex-row items-center">
+                <View className="mr-3 min-w-0 flex-1">
                   <Text
-                    className={`min-w-0 flex-1 text-[13px] font-semibold ${
-                      active ? "text-white/80" : "text-[#3a3a3c]"
-                    }`}
-                    numberOfLines={1}
+                    className={`text-base font-bold ${active ? "text-white" : "text-[#111111]"}`}
+                    numberOfLines={2}
                   >
-                    {preview.join("  ›  ")}
-                    {extra > 0 ? `  +${extra}` : ""}
+                    {route.name}
                   </Text>
-                  <View
-                    className={`ml-3 h-8 flex-row items-center rounded-full px-3 ${
-                      active ? "bg-white" : "bg-[#111111]"
-                    }`}
-                  >
-                    <Text className={`text-[13px] font-bold ${active ? "text-[#111111]" : "text-white"}`}>
-                      {active ? "En curso" : "Iniciar"}
-                    </Text>
-                  </View>
+                  {active ? (
+                    <Text className="mt-1 text-xs font-semibold text-white/70">En curso</Text>
+                  ) : null}
                 </View>
+                <RouteThumb uri={route.imageUrl} size={LIST_THUMB} active={active} />
               </Pressable>
             );
           })}

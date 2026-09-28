@@ -16,7 +16,7 @@ export default async function RoutePage({
 
   const supabase = await createClient();
   const [{ data: route, error }, { data: places, error: placesError }] = await Promise.all([
-    supabase.from("routes").select("id, name, description, published, route_stops(place_id, position)").eq("id", routeId).maybeSingle(),
+    supabase.from("routes").select("id, name, description, image_url, published, route_stops(place_id, position)").eq("id", routeId).maybeSingle(),
     supabase.from("places").select("id, name, kind").order("name"),
   ]);
 
@@ -43,6 +43,7 @@ export default async function RoutePage({
         routeId={route.id}
         name={route.name}
         description={route.description ?? ""}
+        imageUrl={route.image_url}
         published={route.published}
         stopIds={stops.map((stop) => stop.place_id)}
         places={places ?? []}
