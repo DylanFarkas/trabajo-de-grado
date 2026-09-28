@@ -69,3 +69,6 @@ En QGIS se puede digitalizar la misma capa de puntos con snapping activo sobre `
 | 2 | E23 | Espíritu Santo Potes, lado norte. WGS84: 3.375818, -76.532795 |
 | 3 | E26 | Álvaro Escobar Navia, lado sur. WGS84: 3.376490, -76.532663 |
 | 4 | D17 | Coliseo Alberto León Betancur, fachada este. WGS84: 3.371687, -76.533398 |
+| 5 | E19 | Biblioteca Central Mario Carvajal, fachada sur. WGS84: 3.376453, -76.534442 |
+| 6 | B23 | CECIM, fachada norte. WGS84: 3.376284, -76.530628 |
+| 7 | E17 | Escuela de Ciencias del Lenguaje, fachada sur. WGS84: 3.376487, -76.535177 |
