@@ -42,11 +42,12 @@ import type { BuildingProperties, GeoJsonFeatureCollection } from "@/types/campu
 import { MapHeader } from "@/components/MapHeader";
 import { AssistantSheet } from "@/components/AssistantSheet";
 import { ExploreSheet } from "@/components/ExploreSheet";
-import { HomeTabs, homeTabBarHeight, type HomeTab } from "@/components/HomeTabs";
+import { homeTabBarHeight } from "@/components/HomeTabs";
 import { MapControls } from "@/components/MapControls";
 import { RouteSheet, type RouteSlot } from "@/components/RouteSheet";
 import { useSheetPresence } from "@/components/SnapSheet";
 import { ToursSheet } from "@/components/ToursSheet";
+import { useMapPanel, type MapPanel } from "@/map-panel";
 
 const UniWebView = withUniwind(WebView);
 
@@ -650,7 +651,7 @@ export function CampusMap() {
   const [route, setRoute] = useState<HybridRouteResult | null>(null);
   const [routeError, setRouteError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  const [tab, setTab] = useState<HomeTab>("map");
+  const { panel: tab, setPanel: setTab, registerSelectMapTab } = useMapPanel();
   const [panelHeight, setPanelHeight] = useState(0);
   const [pickingSlot, setPickingSlot] = useState<RouteSlot | null>(null);
   const [pendingPreset, setPendingPreset] = useState<PresetRoute | null>(null);
@@ -672,7 +673,7 @@ export function CampusMap() {
   const [entranceOverrides, setEntranceOverrides] = useState<Record<string, LatLng>>({});
   const [streetProfile, setStreetProfile] = useState<StreetProfile>("foot-walking");
   const activeSlotRef = useRef<RouteSlot>(activeSlot);
-  const tabRef = useRef<HomeTab>(tab);
+  const tabRef = useRef<MapPanel>(tab);
   const chromeBottomRef = useRef(220);
   const searchSlotRef = useRef<RouteSlot | null>("destination");
   const inTripRef = useRef(false);
@@ -1579,7 +1580,7 @@ export function CampusMap() {
 
   const inTrip = Boolean(origin || destination || preset || pendingPreset || campusPickerOpen);
 
-  const changeTab = useCallback((next: HomeTab) => {
+  const changeTab = useCallback((next: MapPanel) => {
     setQuery("");
     Keyboard.dismiss();
 
@@ -1603,7 +1604,9 @@ export function CampusMap() {
     }
 
     setTab(next);
-  }, [tab, selected, inTrip, closeAssistant, clearRouteUi]);
+  }, [tab, selected, inTrip, closeAssistant, clearRouteUi, setTab]);
+
+  useEffect(() => registerSelectMapTab(changeTab), [registerSelectMapTab, changeTab]);
 
   const searchSlot: RouteSlot | null = !inTrip
     ? "destination"
@@ -1649,7 +1652,7 @@ export function CampusMap() {
   const tabBarHeight = homeTabBarHeight(insets.bottom);
   const headerBlock = insets.top + (showSearch ? 72 : 16);
   const sheetMaxHeight = Math.max(260, windowHeight - headerBlock - tabBarHeight - 72);
-  const chromeBottom = tabBarHeight + panelHeight;
+  const chromeBottom = panelHeight;
   chromeBottomRef.current = chromeBottom;
 
   useEffect(() => {
@@ -1697,7 +1700,7 @@ export function CampusMap() {
 
       {exploreSheet.mounted && shownPlace ? (
         <ExploreSheet
-          bottomOffset={tabBarHeight}
+          bottomOffset={0}
           maxHeight={Math.min(sheetMaxHeight, windowHeight * 0.5)}
           place={shownPlace}
           onClosePlace={() => setSelected(null)}
@@ -1712,7 +1715,7 @@ export function CampusMap() {
 
       {toursSheet.mounted ? (
         <ToursSheet
-          bottomOffset={tabBarHeight}
+          bottomOffset={0}
           maxHeight={Math.min(sheetMaxHeight, windowHeight * 0.72)}
           onHeight={
             toursActive || (!anySheetActive && toursSheet.mounted) ? setPanelHeight : undefined
@@ -1729,7 +1732,7 @@ export function CampusMap() {
 
       {assistantSheet.mounted ? (
         <AssistantSheet
-          bottomOffset={tabBarHeight}
+          bottomOffset={0}
           maxHeight={Math.min(440, sheetMaxHeight)}
           prompt={assistantPrompt}
           onPromptChange={(value) => {
@@ -1756,7 +1759,7 @@ export function CampusMap() {
 
       {routeSheet.mounted ? (
         <RouteSheet
-          bottomOffset={tabBarHeight}
+          bottomOffset={0}
           maxHeight={Math.min(sheetMaxHeight, windowHeight * 0.6)}
           onHeight={
             routeActive || (!anySheetActive && routeSheet.mounted) ? setPanelHeight : undefined
@@ -1807,8 +1810,6 @@ export function CampusMap() {
           presetStops={preset?.stops ?? null}
         />
       ) : null}
-
-      <HomeTabs tab={tab} onChange={changeTab} bottomInset={insets.bottom} />
     </View>
   );
 }

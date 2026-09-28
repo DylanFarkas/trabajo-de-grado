@@ -63,12 +63,20 @@ type SnapSheetProps = {
   absolute?: boolean;
   visible?: boolean;
   onExited?: () => void;
+  fill?: boolean;
   style?: StyleProp<ViewStyle>;
 };
 
-function snapHeight(expanded: boolean, headerHeight: number, bodyHeight: number, maxHeight: number) {
+function snapHeight(
+  expanded: boolean,
+  headerHeight: number,
+  bodyHeight: number,
+  maxHeight: number,
+  fill: boolean,
+) {
   if (headerHeight <= 0) return 0;
   if (!expanded) return headerHeight;
+  if (fill) return maxHeight;
   return Math.min(maxHeight, headerHeight + Math.max(bodyHeight, 0));
 }
 
@@ -84,6 +92,7 @@ export function SnapSheet({
   absolute = true,
   visible = true,
   onExited,
+  fill = false,
   style,
 }: SnapSheetProps) {
   const [uncontrolledExpanded, setUncontrolledExpanded] = useState(defaultExpanded);
@@ -101,7 +110,7 @@ export function SnapSheet({
   const bodyH = useSharedValue(0);
   const maxH = useSharedValue(maxHeight);
 
-  const expandedHeight = snapHeight(true, headerHeight, bodyHeight, maxHeight);
+  const expandedHeight = snapHeight(true, headerHeight, bodyHeight, maxHeight, fill);
 
   const setExpanded = useCallback(
     (next: boolean) => {
@@ -127,9 +136,9 @@ export function SnapSheet({
 
   const applySnap = useCallback(
     (next: boolean, velocity = 0) => {
-      const target = snapHeight(next, headerHeight, bodyHeight, maxHeight);
+      const target = snapHeight(next, headerHeight, bodyHeight, maxHeight, fill);
       if (target <= 0) return;
-      if (next && bodyHeight <= 0) return;
+      if (next && !fill && bodyHeight <= 0) return;
       if (!armed.current) {
         height.value = target;
         translateY.value = target;
@@ -143,7 +152,7 @@ export function SnapSheet({
       }
       height.value = withSpring(target, { ...SPRING, velocity });
     },
-    [headerHeight, bodyHeight, maxHeight, height, translateY, visible, notifyExited],
+    [headerHeight, bodyHeight, maxHeight, fill, height, translateY, visible, notifyExited],
   );
 
   useEffect(() => {
@@ -200,13 +209,13 @@ export function SnapSheet({
         })
         .onUpdate((event) => {
           const minHeight = headerH.value;
-          const maxSnap = Math.min(maxH.value, headerH.value + bodyH.value);
+          const maxSnap = fill ? maxH.value : Math.min(maxH.value, headerH.value + bodyH.value);
           if (minHeight <= 0 || maxSnap < minHeight) return;
           height.value = Math.min(maxSnap, Math.max(minHeight, dragStart.value - event.translationY));
         })
         .onEnd((event) => {
           const minHeight = headerH.value;
-          const maxSnap = Math.min(maxH.value, headerH.value + bodyH.value);
+          const maxSnap = fill ? maxH.value : Math.min(maxH.value, headerH.value + bodyH.value);
           if (minHeight <= 0) return;
           const nextExpanded =
             event.velocityY < -VELOCITY_SNAP ||
@@ -217,7 +226,7 @@ export function SnapSheet({
           });
           runOnJS(commitExpanded)(nextExpanded);
         }),
-    [commitExpanded, dragStart, height, headerH, bodyH, maxH],
+    [commitExpanded, dragStart, height, headerH, bodyH, maxH, fill],
   );
 
   const motionStyle = useAnimatedStyle(() => {
@@ -246,7 +255,7 @@ export function SnapSheet({
   };
 
   const headerNode = typeof header === "function" ? header({ expanded, toggle }) : header;
-  const canScroll = expanded && expandedHeight >= maxHeight && bodyHeight > 0;
+  const canScroll = expanded && (fill || (expandedHeight >= maxHeight && bodyHeight > 0));
 
   return (
     <View
@@ -292,9 +301,12 @@ export function SnapSheet({
             bounces={false}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            automaticallyAdjustKeyboardInsets={fill}
             onContentSizeChange={onBodySize}
             style={canScroll ? { flex: 1 } : { flexGrow: 0 }}
             contentContainerClassName="px-5 pb-4 pt-4"
+            contentContainerStyle={fill ? { flexGrow: 1 } : undefined}
             pointerEvents={expanded ? "auto" : "none"}
           >
             {children}

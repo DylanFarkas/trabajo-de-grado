@@ -12,10 +12,44 @@ import {
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
+import { View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { AuthProvider } from '@/auth';
+import { HomeTabs } from '@/components/HomeTabs';
+import { ProfileScreen } from '@/components/ProfileScreen';
+import { MapPanelProvider, useMapPanel } from '@/map-panel';
+
 SplashScreen.preventAutoHideAsync();
+
+function AppChrome() {
+  const { profileOpen } = useMapPanel();
+
+  return (
+    <View style={{ flex: 1 }}>
+      <View style={{ flex: 1 }}>
+        <Stack screenOptions={{ headerShown: false, animation: "none" }} />
+        {profileOpen ? (
+          <View
+            style={{
+              position: "absolute",
+              top: 0,
+              right: 0,
+              bottom: 0,
+              left: 0,
+              backgroundColor: "#ffffff",
+              zIndex: 20,
+            }}
+          >
+            <ProfileScreen />
+          </View>
+        ) : null}
+      </View>
+      <HomeTabs />
+    </View>
+  );
+}
 
 export default function RootLayout() {
   const [loaded, error] = useFonts({
@@ -39,7 +73,11 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <Stack screenOptions={{ headerShown: false }} />
+        <AuthProvider>
+          <MapPanelProvider>
+            <AppChrome />
+          </MapPanelProvider>
+        </AuthProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
