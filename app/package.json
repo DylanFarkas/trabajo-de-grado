@@ -37,6 +37,8 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.3",
     "@types/react": "~19.2.2",
+    "eslint": "^9.0.0",
+    "eslint-config-expo": "~57.0.2",
     "postcss": "^8.5.28",
     "tailwindcss": "^4.3.3",
     "typescript": "~6.0.3"

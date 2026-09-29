@@ -18,18 +18,34 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AuthProvider } from '@/auth';
 import { HomeTabs } from '@/components/HomeTabs';
+import { PlaceDetailsScreen } from '@/components/PlaceDetailsScreen';
 import { ProfileScreen } from '@/components/ProfileScreen';
 import { MapPanelProvider, useMapPanel } from '@/map-panel';
 
 SplashScreen.preventAutoHideAsync();
 
 function AppChrome() {
-  const { profileOpen } = useMapPanel();
+  const { profileOpen, placeDetails } = useMapPanel();
 
   return (
     <View style={{ flex: 1 }}>
       <View style={{ flex: 1 }}>
         <Stack screenOptions={{ headerShown: false, animation: "none" }} />
+        {placeDetails ? (
+          <View
+            style={{
+              position: "absolute",
+              top: 0,
+              right: 0,
+              bottom: 0,
+              left: 0,
+              backgroundColor: "#ffffff",
+              zIndex: 15,
+            }}
+          >
+            <PlaceDetailsScreen key={placeDetails.code} target={placeDetails} />
+          </View>
+        ) : null}
         {profileOpen ? (
           <View
             style={{

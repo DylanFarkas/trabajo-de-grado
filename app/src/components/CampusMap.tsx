@@ -13,7 +13,7 @@ import {
   CAMPUS_ENTRANCES,
   type CampusEntrance,
 } from "@/constants/entrances";
-import { floorsOf, catalogMapTone, listCampusPlaces, placeInfo, searchCampusPlaces, type CampusCatalog, type CampusPlace, type PresetRoute } from "@/places";
+import { floorsOf, catalogMapTone, categoriesForCode, listCampusPlaces, placeInfo, searchCampusPlaces, type CampusCatalog, type CampusPlace, type PresetRoute } from "@/places";
 import { readCachedCatalog, refreshCatalog } from "@/catalog";
 import {
   buildPlaceCatalog,
@@ -651,7 +651,7 @@ export function CampusMap() {
   const [route, setRoute] = useState<HybridRouteResult | null>(null);
   const [routeError, setRouteError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  const { panel: tab, setPanel: setTab, registerSelectMapTab } = useMapPanel();
+  const { panel: tab, setPanel: setTab, registerSelectMapTab, openPlaceDetails } = useMapPanel();
   const [panelHeight, setPanelHeight] = useState(0);
   const [pickingSlot, setPickingSlot] = useState<RouteSlot | null>(null);
   const [pendingPreset, setPendingPreset] = useState<PresetRoute | null>(null);
@@ -1147,6 +1147,19 @@ export function CampusMap() {
     },
     [assignPoint],
   );
+
+  const openSelectedDetails = useCallback(() => {
+    const info = selectedInfo;
+    if (!info?.code) return;
+    openPlaceDetails({
+      code: info.code,
+      title: info.title,
+      subtitle: info.subtitle,
+      categories: info.categories,
+      description: catalog?.places[info.code]?.description ?? null,
+      tone: categoriesForCode(info.code, catalog)[0]?.tone ?? null,
+    });
+  }, [selectedInfo, catalog, openPlaceDetails]);
 
   const chooseSearchResult = useCallback(
     (place: CampusPlace) => {
@@ -1705,6 +1718,9 @@ export function CampusMap() {
           place={shownPlace}
           onClosePlace={() => setSelected(null)}
           onUsePlace={useSelected}
+          onOpenDetails={
+            shownPlace.code && catalog?.places[shownPlace.code] ? openSelectedDetails : undefined
+          }
           onHeight={
             exploreActive || (!anySheetActive && exploreSheet.mounted) ? setPanelHeight : undefined
           }

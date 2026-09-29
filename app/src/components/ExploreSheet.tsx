@@ -18,6 +18,7 @@ type ExploreSheetProps = {
   place: PlacePreview;
   onClosePlace: () => void;
   onUsePlace: (slot: RouteSlot) => void;
+  onOpenDetails?: () => void;
   onHeight?: (height: number) => void;
   visible?: boolean;
   onExited?: () => void;
@@ -29,6 +30,7 @@ export function ExploreSheet({
   place,
   onClosePlace,
   onUsePlace,
+  onOpenDetails,
   onHeight,
   visible,
   onExited,
@@ -91,6 +93,17 @@ export function ExploreSheet({
         <MaterialIcons name="near-me" size={18} color="#ffffff" />
         <Text className="ml-2 text-[15px] font-bold text-white">Cómo llegar</Text>
       </Pressable>
+      {onOpenDetails ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Ver más detalles de ${place.title}`}
+          onPress={onOpenDetails}
+          className="mt-2 h-12 flex-row items-center justify-center rounded-2xl bg-[#f2f2f4] active:opacity-80"
+        >
+          <MaterialIcons name="info-outline" size={18} color="#111111" />
+          <Text className="ml-2 text-[15px] font-bold text-[#111111]">Ver más detalles</Text>
+        </Pressable>
+      ) : null}
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`Salir desde ${place.title}`}

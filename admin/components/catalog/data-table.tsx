@@ -40,13 +40,17 @@ export function DataTable<T>({
     columnId: string;
     allLabel: string;
     options: { label: string; value: string }[];
+    initial?: string;
   };
 }) {
   const router = useRouter();
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
-  const [tab, setTab] = useState("all");
-  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const initialTab = filterTabs?.initial ?? "all";
+  const [tab, setTab] = useState(initialTab);
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>(
+    filterTabs && initialTab !== "all" ? [{ id: filterTabs.columnId, value: initialTab }] : [],
+  );
 
   const table = useReactTable({
     data: data.length > 0 ? data : (EMPTY as T[]),

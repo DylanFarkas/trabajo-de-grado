@@ -3,6 +3,7 @@ import { NavCard } from "@/components/catalog/nav-card";
 import { PageHeader } from "@/components/layout/page-header";
 import { Shell } from "@/components/layout/shell";
 import { getSessionProfile } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/server";
 
 export default async function Home({
   searchParams,
@@ -11,6 +12,15 @@ export default async function Home({
 }) {
   const profile = await getSessionProfile();
   const params = await searchParams;
+  let pending = 0;
+  if (profile?.role === "admin") {
+    const supabase = await createClient();
+    const { count } = await supabase
+      .from("contributions")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "pending");
+    pending = count ?? 0;
+  }
 
   return (
     <Shell>
@@ -46,10 +56,19 @@ where email = '${profile.email ?? ""}';`}</pre>
           <PageHeader
             crumbs={[{ label: "Inicio" }]}
             title={`Hola${profile.full_name ? `, ${profile.full_name}` : ""}`}
-            subtitle="Edita fichas de edificios, categorías y rutas con sus sitios."
+            subtitle="Edita fichas de edificios, información de los espacios, categorías y rutas."
           />
-          <div className="mt-6 grid gap-4 sm:grid-cols-3">
+          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <NavCard href="/places" title="Edificios" description="Lista y fichas. Ahí se asignan las categorías." />
+            <NavCard
+              href="/contributions"
+              title="Información"
+              description={
+                pending > 0
+                  ? `${pending} ${pending === 1 ? "aporte pendiente" : "aportes pendientes"} de revisar.`
+                  : "Aportes de usuarios y textos de los espacios."
+              }
+            />
             <NavCard href="/categories" title="Categorías" description="Lista y fichas. Se asignan en cada edificio." />
             <NavCard href="/routes" title="Rutas" description="Crea rutas personalizadas." />
           </div>

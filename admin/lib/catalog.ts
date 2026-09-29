@@ -32,3 +32,23 @@ export function toneLabel(tone: string) {
 export function kindLabel(kind: string) {
   return isKind(kind) ? KIND_LABELS[kind] : kind;
 }
+
+export const CONTRIBUTION_STATUSES = ["pending", "approved", "rejected"] as const;
+export type ContributionStatus = (typeof CONTRIBUTION_STATUSES)[number];
+
+export const CONTRIBUTION_STATUS_LABELS: Record<ContributionStatus, string> = {
+  pending: "Pendiente",
+  approved: "Publicada",
+  rejected: "Rechazada",
+};
+
+export const CONTRIBUTION_BODY_MAX = 2000;
+export const CONTRIBUTION_NOTE_MAX = 500;
+
+export function isContributionStatus(value: string): value is ContributionStatus {
+  return (CONTRIBUTION_STATUSES as readonly string[]).includes(value);
+}
+
+export function contributionStatusLabel(status: string) {
+  return isContributionStatus(status) ? CONTRIBUTION_STATUS_LABELS[status] : status;
+}

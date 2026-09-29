@@ -14,6 +14,7 @@ import { Image } from "expo-image";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useAuth } from "@/auth";
+import { MyContributions } from "@/components/MyContributions";
 import { useMapPanel } from "@/map-panel";
 
 type AuthMode = "login" | "register";
@@ -202,6 +203,8 @@ export function ProfileScreen() {
 
             {error ? <ErrorBox message={error} /> : null}
 
+            <MyContributions userId={profile.id} />
+
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Cerrar sesión"
@@ -246,7 +249,7 @@ export function ProfileScreen() {
             </View>
 
             <Text className="mb-5 font-sans text-[13px] leading-5 text-[#8e8e93]">
-              El mapa se puede usar sin cuenta. El perfil sirve para identificarte en el campus.
+              El mapa se puede usar sin cuenta. Con una cuenta puedes aportar información de los espacios y seguir su revisión.
             </Text>
 
             {error ? <ErrorBox message={error} /> : null}

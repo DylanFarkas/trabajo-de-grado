@@ -26,7 +26,7 @@ export function homeTabBarHeight(bottomInset: number) {
 
 export function HomeTabs() {
   const insets = useSafeAreaInsets();
-  const { panel, selectMapTab, profileOpen, setProfileOpen } = useMapPanel();
+  const { panel, selectMapTab, profileOpen, setProfileOpen, placeDetails, closePlaceDetails } = useMapPanel();
   const tab: HomeTab = profileOpen ? "profile" : panel;
 
   const onChange = (next: HomeTab) => {
@@ -36,6 +36,8 @@ export function HomeTabs() {
       setProfileOpen(!profileOpen);
       return;
     }
+
+    if (placeDetails) closePlaceDetails();
 
     if (profileOpen) {
       setProfileOpen(false);

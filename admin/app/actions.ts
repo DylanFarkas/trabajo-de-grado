@@ -4,16 +4,26 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { getSessionProfile } from "@/lib/auth";
-import { isKind, isTone } from "@/lib/catalog";
+import {
+  CONTRIBUTION_BODY_MAX,
+  CONTRIBUTION_NOTE_MAX,
+  isContributionStatus,
+  isKind,
+  isTone,
+} from "@/lib/catalog";
 import { deleteRouteImage, uploadRouteImage } from "@/lib/cloudinary";
 import { createClient } from "@/lib/supabase/server";
 
-async function adminClient() {
+async function adminSession() {
   const profile = await getSessionProfile();
   if (!profile || profile.role !== "admin") {
     throw new Error("Solo un admin puede cambiar el catálogo.");
   }
-  return createClient();
+  return { profile, supabase: await createClient() };
+}
+
+async function adminClient() {
+  return (await adminSession()).supabase;
 }
 
 export async function signOut() {
@@ -268,4 +278,90 @@ export async function deleteRoute(formData: FormData) {
   if (error) throw new Error(error.message);
   revalidatePath("/routes");
   redirect("/routes");
+}
+
+function contributionFields(formData: FormData) {
+  const body = String(formData.get("body") ?? "").trim();
+  if (!body) throw new Error("La información necesita un texto.");
+  if (body.length > CONTRIBUTION_BODY_MAX) {
+    throw new Error(`El texto admite hasta ${CONTRIBUTION_BODY_MAX} caracteres.`);
+  }
+  return { body };
+}
+
+function revalidateContribution(placeId: string) {
+  revalidatePath("/contributions");
+  revalidatePath(`/places/${placeId}`);
+}
+
+/** Crea (ya publicada) o edita información contextual de un espacio. */
+export async function saveContribution(formData: FormData) {
+  const { supabase, profile } = await adminSession();
+  const fields = contributionFields(formData);
+  const rawId = String(formData.get("id") ?? "").trim();
+
+  if (!rawId) {
+    const placeId = String(formData.get("place_id") ?? "").trim();
+    if (!placeId) throw new Error("Elige el espacio de esta información.");
+    const { data, error } = await supabase
+      .from("contributions")
+      .insert({ place_id: placeId, author_id: profile.id, status: "approved", ...fields })
+      .select("id")
+      .single();
+    if (error) throw new Error(error.message);
+    revalidateContribution(placeId);
+    redirect(`/contributions/${data.id}`);
+  }
+
+  const id = Number(rawId);
+  if (!Number.isFinite(id)) throw new Error("La información no existe.");
+  const { data, error } = await supabase
+    .from("contributions")
+    .update(fields)
+    .eq("id", id)
+    .select("place_id")
+    .single();
+  if (error) throw new Error(error.message);
+  revalidateContribution(data.place_id);
+  redirect(`/contributions/${id}`);
+}
+
+/** Aprueba, rechaza o devuelve a pendiente. La base registra quién y cuándo. */
+export async function reviewContribution(formData: FormData) {
+  const supabase = await adminClient();
+  const id = Number(formData.get("id"));
+  const decision = String(formData.get("decision") ?? "");
+  const note = String(formData.get("review_note") ?? "").trim();
+  if (!Number.isFinite(id) || !isContributionStatus(decision)) {
+    throw new Error("No se pudo revisar la información.");
+  }
+  if (note.length > CONTRIBUTION_NOTE_MAX) {
+    throw new Error(`La nota admite hasta ${CONTRIBUTION_NOTE_MAX} caracteres.`);
+  }
+
+  const { data, error } = await supabase
+    .from("contributions")
+    .update({ status: decision, review_note: note || null })
+    .eq("id", id)
+    .select("place_id")
+    .single();
+  if (error) throw new Error(error.message);
+  revalidateContribution(data.place_id);
+  redirect("/contributions");
+}
+
+export async function deleteContribution(formData: FormData) {
+  const supabase = await adminClient();
+  const id = Number(formData.get("id"));
+  if (!Number.isFinite(id)) throw new Error("La información no existe.");
+  const { data, error } = await supabase
+    .from("contributions")
+    .delete()
+    .eq("id", id)
+    .select("place_id")
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (data) revalidateContribution(data.place_id);
+  else revalidatePath("/contributions");
+  redirect("/contributions");
 }
