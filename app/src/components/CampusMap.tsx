@@ -8,12 +8,12 @@ import * as Location from "expo-location";
 import edificios from "@/assets/geojson/edificios.json";
 import aristasRed from "@/assets/geojson/aristas_red.json";
 import pasillos from "@/assets/geojson/pasillos.json";
-import { CAMPUS_BOUNDS, MOCK_CAMPUS_LOCATION } from "@/constants/map";
+import { BUILDING_HEIGHT_OVERRIDES, CAMPUS_BOUNDS, MOCK_CAMPUS_LOCATION } from "@/constants/map";
 import {
   CAMPUS_ENTRANCES,
   type CampusEntrance,
 } from "@/constants/entrances";
-import { floorsOf, catalogMapTone, categoriesForCode, listCampusPlaces, placeInfo, searchCampusPlaces, type CampusCatalog, type CampusPlace, type PresetRoute } from "@/places";
+import { catalogMapTone, categoriesForCode, listCampusPlaces, placeInfo, searchCampusPlaces, type CampusCatalog, type CampusPlace, type PresetRoute } from "@/places";
 import { readCachedCatalog, refreshCatalog } from "@/catalog";
 import {
   buildPlaceCatalog,
@@ -75,8 +75,6 @@ function pointForBuilding(
   return snapCampusPoint(fallback);
 }
 
-const METERS_PER_FLOOR = 3.2;
-
 function withExtrusionHeight(
   collection: GeoJsonFeatureCollection,
   catalog: CampusCatalog | null,
@@ -85,9 +83,9 @@ function withExtrusionHeight(
     ...collection,
     features: collection.features.map((feature) => {
       const props = (feature.properties ?? {}) as BuildingProperties;
-      const floors = floorsOf(props);
-      const height_m = Math.max(floors * METERS_PER_FLOOR, METERS_PER_FLOOR);
       const code = props["addr:housenumber"] ? String(props["addr:housenumber"]) : null;
+      const override = code ? BUILDING_HEIGHT_OVERRIDES[code] : undefined;
+      const height_m = override != null && override > 0 ? override : 0;
       const amenity = props.amenity ? String(props.amenity) : "";
       const label =
         props["addr:housenumber"] ||
@@ -107,7 +105,6 @@ function withExtrusionHeight(
         ...feature,
         properties: {
           ...props,
-          floors,
           height_m,
           tone,
           label: String(label),
@@ -506,6 +503,7 @@ function buildMapHtml(): string {
       }, beforeId);
       map.addLayer({
         id: 'buildings-footprint', type: 'fill', source: 'buildings',
+        filter: ['>', ['coalesce', ['get', 'height_m'], 0], 0],
         paint: {
           'fill-color': '#5b6672',
           'fill-opacity': 0.14,
@@ -514,6 +512,7 @@ function buildMapHtml(): string {
       }, beforeId);
       map.addLayer({
         id: 'buildings-3d', type: 'fill-extrusion', source: 'buildings',
+        filter: ['>', ['coalesce', ['get', 'height_m'], 0], 0],
         paint: {
           'fill-extrusion-color': [
             'case',
@@ -549,7 +548,7 @@ function buildMapHtml(): string {
           'text-anchor': 'center',
           'text-max-width': 8,
           'text-allow-overlap': false,
-          'symbol-sort-key': ['*', -1, ['get', 'height_m']]
+          'symbol-sort-key': ['*', -1, ['coalesce', ['get', 'height_m'], 0]]
         },
         paint: {
           'text-color': [

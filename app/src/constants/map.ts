@@ -15,6 +15,14 @@ export const MOCK_CAMPUS_LOCATION = {
   longitude: -76.534309,
 } as const;
 
+/**
+ * Altura en metros solo para edificios que no deben usar la del mapa base.
+ * La clave es el código (`E19`, `E22`). Vacío: se ve la altura de OpenFreeMap.
+ */
+export const BUILDING_HEIGHT_OVERRIDES: Record<string, number> = {
+  B23: 15,
+};
+
 export const MAP_COLORS = {
   buildingFill: "#ebe0d0",
   buildingStroke: "#6b5a48",
