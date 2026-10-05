@@ -15,6 +15,7 @@ import { useEffect } from 'react';
 import { View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { ScopedTheme, useUniwind } from 'uniwind';
 
 import { AuthProvider } from '@/auth';
 import { HomeTabs } from '@/components/HomeTabs';
@@ -26,43 +27,50 @@ SplashScreen.preventAutoHideAsync();
 
 function AppChrome() {
   const { profileOpen, placeDetails } = useMapPanel();
+  const { theme } = useUniwind();
+  const overlayOpen = Boolean(profileOpen || placeDetails);
 
+  // Solo la interfaz sobre el mapa tiene variante de noche; las pantallas completas quedan claras.
   return (
     <View style={{ flex: 1 }}>
       <View style={{ flex: 1 }}>
         <Stack screenOptions={{ headerShown: false, animation: "none" }} />
-        {placeDetails ? (
-          <View
-            style={{
-              position: "absolute",
-              top: 0,
-              right: 0,
-              bottom: 0,
-              left: 0,
-              backgroundColor: "#ffffff",
-              zIndex: 15,
-            }}
-          >
-            <PlaceDetailsScreen key={placeDetails.code} target={placeDetails} />
-          </View>
-        ) : null}
-        {profileOpen ? (
-          <View
-            style={{
-              position: "absolute",
-              top: 0,
-              right: 0,
-              bottom: 0,
-              left: 0,
-              backgroundColor: "#ffffff",
-              zIndex: 20,
-            }}
-          >
-            <ProfileScreen />
-          </View>
-        ) : null}
+        <ScopedTheme theme="light">
+          {placeDetails ? (
+            <View
+              style={{
+                position: "absolute",
+                top: 0,
+                right: 0,
+                bottom: 0,
+                left: 0,
+                backgroundColor: "#ffffff",
+                zIndex: 15,
+              }}
+            >
+              <PlaceDetailsScreen key={placeDetails.code} target={placeDetails} />
+            </View>
+          ) : null}
+          {profileOpen ? (
+            <View
+              style={{
+                position: "absolute",
+                top: 0,
+                right: 0,
+                bottom: 0,
+                left: 0,
+                backgroundColor: "#ffffff",
+                zIndex: 20,
+              }}
+            >
+              <ProfileScreen />
+            </View>
+          ) : null}
+        </ScopedTheme>
       </View>
-      <HomeTabs />
+      <ScopedTheme theme={overlayOpen || theme !== "dark" ? "light" : "dark"}>
+        <HomeTabs />
+      </ScopedTheme>
     </View>
   );
 }

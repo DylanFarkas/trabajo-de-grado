@@ -275,7 +275,7 @@ export function SnapSheet({
       ]}
     >
       <Animated.View style={[{ maxHeight, width: "100%" }, motionStyle]}>
-        <View className="rounded-t-[28px] bg-white shadow-[0_-10px_30px_rgba(17,17,17,0.12)]">
+        <View className="rounded-t-[28px] bg-white shadow-[0_-10px_30px_rgba(17,17,17,0.12)] dark:bg-[#10151d] dark:shadow-[0_-10px_30px_rgba(0,0,0,0.5)]">
         <Animated.View
           style={[
             { overflow: "hidden", borderTopLeftRadius: 28, borderTopRightRadius: 28 },
@@ -291,7 +291,7 @@ export function SnapSheet({
                 hitSlop={12}
                 className="items-center pb-3"
               >
-                <View className="h-1 w-9 rounded-sm bg-[#e0e0e5]" />
+                <View className="h-1 w-9 rounded-sm bg-[#e0e0e5] dark:bg-[#2c3441]" />
               </Pressable>
               {headerNode}
             </View>

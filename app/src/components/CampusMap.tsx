@@ -8,7 +8,16 @@ import * as Location from "expo-location";
 import edificios from "@/assets/geojson/edificios.json";
 import aristasRed from "@/assets/geojson/aristas_red.json";
 import pasillos from "@/assets/geojson/pasillos.json";
+import postes from "@/assets/geojson/postes.json";
 import { BUILDING_HEIGHT_OVERRIDES, CAMPUS_BOUNDS, MOCK_CAMPUS_LOCATION } from "@/constants/map";
+import {
+  LAMP_KINDS,
+  MAP_BACKDROP,
+  MAP_PALETTES,
+  MAP_STYLE_URLS,
+  type MapTheme,
+} from "@/constants/mapTheme";
+import { useMapTheme } from "@/map-theme";
 import {
   CAMPUS_ENTRANCES,
   type CampusEntrance,
@@ -114,19 +123,43 @@ function withExtrusionHeight(
   };
 }
 
-function buildMapHtml(): string {
+function buildMapHtml(initialTheme: MapTheme): string {
   const centerLat = (CAMPUS_BOUNDS.minLat + CAMPUS_BOUNDS.maxLat) / 2;
   const centerLon = (CAMPUS_BOUNDS.minLon + CAMPUS_BOUNDS.maxLon) / 2;
+  const config = JSON.stringify({
+    styles: MAP_STYLE_URLS,
+    backdrops: MAP_BACKDROP,
+    palettes: MAP_PALETTES,
+    lampKinds: LAMP_KINDS,
+    centerLat,
+  });
 
   return `<!DOCTYPE html>
-<html>
+<html data-theme="${initialTheme}">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
   <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
   <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
   <style>
-    html, body, #map { margin: 0; padding: 0; height: 100%; width: 100%; background: #dbe4ee; }
+    html, body, #map { margin: 0; padding: 0; height: 100%; width: 100%; }
+    html, body { background: ${MAP_BACKDROP.day}; }
+    html[data-theme="night"] { background: ${MAP_BACKDROP.night}; }
+    #map { background: transparent; }
+    body[data-theme="night"] {
+      background: linear-gradient(180deg, #03060c 0%, #0a1426 20%, #17223b 32%, ${MAP_BACKDROP.night} 46%);
+    }
+    .night-vignette, .theme-veil {
+      position: absolute; inset: 0; pointer-events: none; opacity: 0;
+    }
+    .night-vignette {
+      transition: opacity 0.5s ease;
+      background: radial-gradient(ellipse at 50% 58%, transparent 52%, rgba(3,5,10,0.55) 100%);
+    }
+    body[data-theme="night"] .night-vignette { opacity: 1; }
+    .theme-veil { transition: opacity 0.45s ease; }
+    .theme-veil.on { opacity: 1; transition-duration: 0.18s; }
+
     .maplibregl-ctrl-attrib { font-size: 10px; }
     .route-marker {
       width: 30px; height: 30px; border-radius: 15px;
@@ -144,15 +177,66 @@ function buildMapHtml(): string {
       font: 800 11px system-ui, sans-serif; color: #fff;
     }
     .user-marker {
+      position: relative;
       width: 18px; height: 18px; border-radius: 9px;
       background: #2563eb; border: 3px solid #fff;
       box-shadow: 0 0 0 6px rgba(37,99,235,0.22), 0 6px 14px rgba(17,17,17,0.28);
     }
+    .route-marker, .entrance-marker, .user-marker {
+      transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease, color 0.3s ease;
+    }
     .maplibregl-ctrl-bottom-left { bottom: 220px; left: 12px; }
     .maplibregl-ctrl-group { border-radius: 14px !important; overflow: hidden; box-shadow: 0 8px 18px rgba(17,17,17,0.12); }
+
+    body[data-theme="night"] .route-marker {
+      border-color: #0b1220;
+      box-shadow: 0 0 0 1.5px rgba(226,232,240,0.35), 0 8px 18px rgba(0,0,0,0.55);
+    }
+    body[data-theme="night"] .route-marker.origin,
+    body[data-theme="night"] .route-marker.stop,
+    body[data-theme="night"] .entrance-marker { background: #eef2f7; color: #0b1220; }
+    body[data-theme="night"] .route-marker.dest,
+    body[data-theme="night"] .route-marker.stop-last {
+      background: #3b82f6; color: #ffffff;
+      box-shadow: 0 0 0 1.5px rgba(147,197,253,0.55), 0 0 18px rgba(59,130,246,0.6), 0 8px 18px rgba(0,0,0,0.5);
+    }
+    body[data-theme="night"] .entrance-marker {
+      border-color: #0b1220;
+      box-shadow: 0 0 0 1.5px rgba(226,232,240,0.35), 0 8px 16px rgba(0,0,0,0.55);
+    }
+    body[data-theme="night"] .user-marker {
+      background: #60a5fa; border-color: #0b1220;
+      box-shadow: 0 0 0 6px rgba(96,165,250,0.22), 0 0 22px rgba(96,165,250,0.6);
+    }
+    body[data-theme="night"] .user-marker::after {
+      content: ""; position: absolute; inset: -3px; border-radius: 50%;
+      border: 2px solid rgba(96,165,250,0.7);
+      animation: user-pulse 2.4s ease-out infinite;
+    }
+    @keyframes user-pulse {
+      0% { transform: scale(1); opacity: 0.8; }
+      100% { transform: scale(3.2); opacity: 0; }
+    }
+    body[data-theme="night"] .maplibregl-ctrl-group {
+      background: #121821;
+      box-shadow: 0 8px 18px rgba(0,0,0,0.45), inset 0 0 0 1px rgba(255,255,255,0.06);
+    }
+    body[data-theme="night"] .maplibregl-ctrl-group button + button { border-top-color: #232c3a; }
+    body[data-theme="night"] .maplibregl-ctrl-icon { filter: invert(0.92); }
+    body[data-theme="night"] .maplibregl-ctrl-attrib { background: rgba(7,11,18,0.72); color: #8b95a5; }
+    body[data-theme="night"] .maplibregl-ctrl-attrib a { color: #aab4c3; }
+    body[data-theme="night"] .maplibregl-ctrl-attrib-button { filter: invert(1); }
+    body[data-theme="night"] .maplibregl-popup-content {
+      background: #141b25; color: #eef2f7; box-shadow: 0 10px 24px rgba(0,0,0,0.5);
+    }
+    body[data-theme="night"] .maplibregl-popup-anchor-bottom .maplibregl-popup-tip { border-top-color: #141b25; }
+    body[data-theme="night"] .maplibregl-popup-anchor-top .maplibregl-popup-tip { border-bottom-color: #141b25; }
+    body[data-theme="night"] .maplibregl-popup-anchor-left .maplibregl-popup-tip { border-right-color: #141b25; }
+    body[data-theme="night"] .maplibregl-popup-anchor-right .maplibregl-popup-tip { border-left-color: #141b25; }
+    body[data-theme="night"] .maplibregl-popup-close-button { color: #aab4c3; }
   </style>
 </head>
-<body>
+<body data-theme="${initialTheme}">
   <div id="map"></div>
   <script>
     function post(payload) {
@@ -161,9 +245,20 @@ function buildMapHtml(): string {
       }
     }
 
+    var CONFIG = ${config};
+    var theme = '${initialTheme}';
+    var styleBusy = true;
+    var pendingTheme = null;
+    var campus = null;
+    var lampData = null;
+    var routeCoords = null;
+    var cameraFitted = false;
+
+    function palette() { return CONFIG.palettes[theme]; }
+
     const map = new maplibregl.Map({
       container: 'map',
-      style: 'https://tiles.openfreemap.org/styles/liberty',
+      style: CONFIG.styles[theme],
       center: [${centerLon}, ${centerLat}],
       zoom: 16.2,
       pitch: 58,
@@ -173,6 +268,13 @@ function buildMapHtml(): string {
     });
 
     map.addControl(new maplibregl.NavigationControl({ visualizePitch: false, showCompass: false }), 'bottom-left');
+
+    var vignette = document.createElement('div');
+    vignette.className = 'night-vignette';
+    map.getCanvasContainer().appendChild(vignette);
+    var veil = document.createElement('div');
+    veil.className = 'theme-veil';
+    map.getCanvasContainer().appendChild(veil);
 
     var chromeBottom = 220;
     window.setChromeBottom = function (px) {
@@ -311,11 +413,61 @@ function buildMapHtml(): string {
       }
     };
 
-    window.clearRouteLine = function () {
+    function removeRouteLayers() {
       if (map.getLayer('route-line')) map.removeLayer('route-line');
       if (map.getLayer('route-casing')) map.removeLayer('route-casing');
       if (map.getLayer('route-glow')) map.removeLayer('route-glow');
       if (map.getSource('route')) map.removeSource('route');
+    }
+
+    function drawRouteLine() {
+      if (!routeCoords) {
+        removeRouteLayers();
+        return;
+      }
+      var data = {
+        type: 'Feature',
+        properties: {},
+        geometry: { type: 'LineString', coordinates: routeCoords }
+      };
+      if (map.getSource('route') && map.getLayer('route-line')) {
+        map.getSource('route').setData(data);
+        return;
+      }
+      removeRouteLayers();
+      var colors = palette();
+      map.addSource('route', { type: 'geojson', data: data });
+      map.addLayer({
+        id: 'route-glow',
+        type: 'line',
+        source: 'route',
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: {
+          'line-color': colors.routeGlow,
+          'line-width': 16,
+          'line-opacity': colors.routeGlowOpacity,
+          'line-blur': 6
+        }
+      });
+      map.addLayer({
+        id: 'route-casing',
+        type: 'line',
+        source: 'route',
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: { 'line-color': colors.routeCasing, 'line-width': 12, 'line-opacity': 0.95 }
+      });
+      map.addLayer({
+        id: 'route-line',
+        type: 'line',
+        source: 'route',
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: { 'line-color': colors.routeLine, 'line-width': 5.5, 'line-opacity': 0.98 }
+      });
+    }
+
+    window.clearRouteLine = function () {
+      routeCoords = null;
+      removeRouteLayers();
     };
 
     window.clearRoute = function () {
@@ -331,37 +483,8 @@ function buildMapHtml(): string {
         window.clearRouteLine();
         return;
       }
-      var data = {
-        type: 'Feature',
-        properties: {},
-        geometry: { type: 'LineString', coordinates: coordinates }
-      };
-      if (map.getSource('route')) {
-        map.getSource('route').setData(data);
-      } else {
-        map.addSource('route', { type: 'geojson', data: data });
-        map.addLayer({
-          id: 'route-casing',
-          type: 'line',
-          source: 'route',
-          layout: { 'line-cap': 'round', 'line-join': 'round' },
-          paint: { 'line-color': '#ffffff', 'line-width': 12, 'line-opacity': 0.95 }
-        });
-        map.addLayer({
-          id: 'route-line',
-          type: 'line',
-          source: 'route',
-          layout: { 'line-cap': 'round', 'line-join': 'round' },
-          paint: { 'line-color': '#2563eb', 'line-width': 5.5, 'line-opacity': 0.98 }
-        });
-        map.addLayer({
-          id: 'route-glow',
-          type: 'line',
-          source: 'route',
-          layout: { 'line-cap': 'round', 'line-join': 'round' },
-          paint: { 'line-color': '#93c5fd', 'line-width': 16, 'line-opacity': 0.28, 'line-blur': 6 }
-        }, 'route-casing');
-      }
+      routeCoords = coordinates;
+      if (!styleBusy) drawRouteLine();
       var bounds = coordinates.reduce(function (b, c) {
         return b.extend(c);
       }, new maplibregl.LngLatBounds(coordinates[0], coordinates[0]));
@@ -391,47 +514,222 @@ function buildMapHtml(): string {
       return undefined;
     }
 
-    window.loadCampusLayers = function (buildings, paths, passages) {
-      [
-        'buildings-labels', 'buildings-3d', 'buildings-footprint', 'buildings-hit',
-        'paths-line', 'paths-mid', 'paths-casing', 'paths-glow',
-        'service-line', 'service-casing',
-        'foot-line', 'foot-casing',
-        'steps-line',
-        'pasillos-line', 'pasillos-casing'
-      ].forEach(function (id) {
-        if (map.getLayer(id)) map.removeLayer(id);
-      });
-      if (map.getSource('buildings')) map.removeSource('buildings');
-      if (map.getSource('paths')) map.removeSource('paths');
-      if (map.getSource('pasillos')) map.removeSource('pasillos');
+    var M_LAT = 110540;
+    var M_LON = 111320 * Math.cos((CONFIG.centerLat * Math.PI) / 180);
+    var PX_PER_METER_Z0 = 1 / ((40075016.686 * Math.cos((CONFIG.centerLat * Math.PI) / 180)) / 512);
 
-      const beforeId = firstSymbolLayerId();
-      [
-        'road_path_pedestrian',
-        'tunnel_path_pedestrian',
-        'bridge_path_pedestrian',
-        'bridge_path_pedestrian_casing'
-      ].forEach(function (id) {
+    function metersRadius(factor) {
+      return [
+        'interpolate', ['exponential', 2], ['zoom'],
+        12, ['*', ['get', 'r'], factor * PX_PER_METER_Z0 * Math.pow(2, 12)],
+        22, ['*', ['get', 'r'], factor * PX_PER_METER_Z0 * Math.pow(2, 22)]
+      ];
+    }
+
+    function offsetLngLat(lon, lat, east, north) {
+      return [lon + east / M_LON, lat + north / M_LAT];
+    }
+
+    function closeRing(ring) {
+      ring.push(ring[0]);
+      return ring;
+    }
+
+    function squareRing(lon, lat, size) {
+      var h = size / 2;
+      return closeRing([
+        offsetLngLat(lon, lat, -h, -h),
+        offsetLngLat(lon, lat, h, -h),
+        offsetLngLat(lon, lat, h, h),
+        offsetLngLat(lon, lat, -h, h)
+      ]);
+    }
+
+    function boxRing(lon, lat, ax, ay, length, width) {
+      var px = -ay, py = ax, hl = length / 2, hw = width / 2;
+      return closeRing([[-hl, -hw], [hl, -hw], [hl, hw], [-hl, hw]].map(function (c) {
+        return offsetLngLat(lon, lat, ax * c[0] + px * c[1], ay * c[0] + py * c[1]);
+      }));
+    }
+
+    function ovalRing(lon, lat, ax, ay, length, width) {
+      var px = -ay, py = ax, ring = [];
+      for (var i = 0; i < 10; i++) {
+        var a = (i / 10) * Math.PI * 2;
+        var along = Math.cos(a) * (length / 2);
+        var side = Math.sin(a) * (width / 2);
+        ring.push(offsetLngLat(lon, lat, ax * along + px * side, ay * along + py * side));
+      }
+      return closeRing(ring);
+    }
+
+    function lampPart(ring, part, base, height, lit) {
+      return {
+        type: 'Feature',
+        properties: { part: part, base: base, height: height, lit: lit },
+        geometry: { type: 'Polygon', coordinates: [ring] }
+      };
+    }
+
+    /** Rumbo (grados desde el norte) hacia el punto más cercano de algún camino. */
+    function bearingToNearestPath(lon, lat) {
+      var best = null;
+      var bestD = Infinity;
+      ((campus && campus.paths && campus.paths.features) || []).forEach(function (f) {
+        var g = f.geometry;
+        if (!g) return;
+        var lines = g.type === 'LineString' ? [g.coordinates] : g.type === 'MultiLineString' ? g.coordinates : [];
+        lines.forEach(function (coords) {
+          for (var i = 1; i < coords.length; i++) {
+            var ax = (coords[i - 1][0] - lon) * M_LON, ay = (coords[i - 1][1] - lat) * M_LAT;
+            var dx = (coords[i][0] - lon) * M_LON - ax, dy = (coords[i][1] - lat) * M_LAT - ay;
+            var len2 = dx * dx + dy * dy;
+            var t = len2 > 0 ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / len2)) : 0;
+            var cx = ax + dx * t, cy = ay + dy * t;
+            var d = cx * cx + cy * cy;
+            if (d < bestD) { bestD = d; best = [cx, cy]; }
+          }
+        });
+      });
+      if (!best || bestD < 0.01) return 0;
+      return (Math.atan2(best[0], best[1]) * 180) / Math.PI;
+    }
+
+    function addStreetLamp(models, glows, lon, lat, height, bearing, arms, radius, lit) {
+      var spec = CONFIG.lampKinds.vial;
+      var armRise = 1.1;
+      var shaftH = Math.max(3, height - armRise);
+      var rad = (bearing * Math.PI) / 180;
+      models.push(lampPart(squareRing(lon, lat, 0.7), 'base', 0, 0.45, lit));
+      models.push(lampPart(squareRing(lon, lat, 0.3), 'pole', 0.45, Math.min(3.2, shaftH), lit));
+      models.push(lampPart(squareRing(lon, lat, 0.2), 'pole', Math.min(3.2, shaftH), shaftH + 0.1, lit));
+      for (var arm = 0; arm < arms; arm++) {
+        var sign = arm === 0 ? 1 : -1;
+        var dirx = Math.sin(rad) * sign;
+        var diry = Math.cos(rad) * sign;
+        var prevX = 0, prevZ = shaftH;
+        for (var i = 1; i <= 7; i++) {
+          var ang = (i / 7) * (Math.PI / 2);
+          var x = spec.reach * (1 - Math.cos(ang));
+          var z = shaftH + armRise * Math.sin(ang);
+          var mid = (prevX + x) / 2;
+          var c = offsetLngLat(lon, lat, dirx * mid, diry * mid);
+          models.push(lampPart(
+            boxRing(c[0], c[1], dirx, diry, Math.max(0.22, x - prevX + 0.1), 0.12),
+            'pole', Math.min(prevZ, z), Math.max(prevZ, z) + 0.1, lit
+          ));
+          prevX = x;
+          prevZ = z;
+        }
+        var head = offsetLngLat(lon, lat, dirx * (spec.reach + 0.3), diry * (spec.reach + 0.3));
+        models.push(lampPart(ovalRing(head[0], head[1], dirx, diry, 1.05, 0.46), 'bulb', prevZ - 0.22, prevZ - 0.02, lit));
+        models.push(lampPart(ovalRing(head[0], head[1], dirx, diry, 1.2, 0.56), 'head', prevZ - 0.02, prevZ + 0.12, lit));
+        if (lit) {
+          glows.push({
+            type: 'Feature',
+            properties: { kind: 'vial', r: radius },
+            geometry: { type: 'Point', coordinates: head }
+          });
+        }
+      }
+    }
+
+    function addPathLamp(models, glows, lon, lat, height, radius, lit) {
+      var h = Math.max(1.5, height);
+      models.push(lampPart(squareRing(lon, lat, 0.46), 'base', 0, 0.3, lit));
+      models.push(lampPart(squareRing(lon, lat, 0.14), 'pole', 0.3, h - 0.74, lit));
+      models.push(lampPart(squareRing(lon, lat, 0.3), 'head', h - 0.79, h - 0.69, lit));
+      models.push(lampPart(squareRing(lon, lat, 0.4), 'bulb', h - 0.69, h - 0.22, lit));
+      models.push(lampPart(squareRing(lon, lat, 0.56), 'head', h - 0.22, h - 0.12, lit));
+      models.push(lampPart(squareRing(lon, lat, 0.3), 'head', h - 0.12, h, lit));
+      if (lit) {
+        glows.push({
+          type: 'Feature',
+          properties: { kind: 'peatonal', r: radius },
+          geometry: { type: 'Point', coordinates: [lon, lat] }
+        });
+      }
+    }
+
+    /** Modelos y luz a partir de los puntos de postes.json. Ningún poste se genera. */
+    function buildLampData(collection) {
+      var models = [];
+      var glows = [];
+      ((collection && collection.features) || []).forEach(function (feature) {
+        var g = feature.geometry;
+        if (!g || g.type !== 'Point') return;
+        var lon = g.coordinates[0], lat = g.coordinates[1];
+        if (!isFinite(lon) || !isFinite(lat)) return;
+        var p = feature.properties || {};
+        var kind = p.tipo === 'vial' ? 'vial' : 'peatonal';
+        var spec = CONFIG.lampKinds[kind];
+        var height = p.altura_m > 0 ? p.altura_m : spec.height;
+        var radius = p.radio_m > 0 ? p.radio_m : spec.radius;
+        var lit = p.estado !== 'dañado';
+        if (kind === 'vial') {
+          var bearing = typeof p.rumbo === 'number' && isFinite(p.rumbo) ? p.rumbo : bearingToNearestPath(lon, lat);
+          addStreetLamp(models, glows, lon, lat, height, bearing, p.brazos === 2 ? 2 : 1, radius, lit);
+        } else {
+          addPathLamp(models, glows, lon, lat, height, radius, lit);
+        }
+      });
+      return {
+        glows: { type: 'FeatureCollection', features: glows },
+        models: { type: 'FeatureCollection', features: models }
+      };
+    }
+
+    var CAMPUS_LAYERS = [
+      'buildings-labels', 'lamp-bulb', 'lamp-3d', 'buildings-selected', 'buildings-3d',
+      'buildings-footprint', 'buildings-hit', 'campus-building-3d',
+      'lamp-core', 'lamp-glow', 'lamp-pool',
+      'steps-line', 'foot-line', 'foot-casing', 'service-line', 'service-casing',
+      'pasillos-line', 'pasillos-casing'
+    ];
+    var CAMPUS_SOURCES = ['lamp-models', 'lamps', 'buildings', 'paths', 'pasillos'];
+
+    /** Ajustes sobre el estilo base. Los ids cambian entre liberty y dark, por eso cada uno se protege. */
+    function applyBaseTheme() {
+      var colors = palette();
+      colors.hide.forEach(function (id) {
         if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', 'none');
       });
+      Object.keys(colors.base).forEach(function (id) {
+        if (!map.getLayer(id)) return;
+        var paint = colors.base[id];
+        Object.keys(paint).forEach(function (prop) {
+          try { map.setPaintProperty(id, prop, paint[prop]); } catch (e) {}
+        });
+      });
+      map.setLight(colors.light);
+    }
+
+    function addCampusLayers() {
+      if (!campus) return;
+      var colors = palette();
+      var night = theme === 'night';
+      var lamps = colors.lamps && lampData && lampData.models.features.length ? colors.lamps : null;
+
+      CAMPUS_LAYERS.forEach(function (id) {
+        if (map.getLayer(id)) map.removeLayer(id);
+      });
+      CAMPUS_SOURCES.forEach(function (id) {
+        if (map.getSource(id)) map.removeSource(id);
+      });
+
+      const beforeId = firstSymbolLayerId();
       const serviceFilter = ['==', ['get', 'highway'], 'service'];
       const footFilter = ['match', ['get', 'highway'], ['footway', 'path', 'pedestrian', 'bridleway'], true, false];
       const stepsFilter = ['==', ['get', 'highway'], 'steps'];
 
-      map.addSource('paths', { type: 'geojson', data: paths });
+      map.addSource('paths', { type: 'geojson', data: campus.paths });
       map.addLayer({
         id: 'service-casing', type: 'line', source: 'paths',
         filter: serviceFilter,
         layout: { 'line-cap': 'round', 'line-join': 'round' },
         paint: {
-          'line-color': '#cfcdca',
-          'line-width': [
-            'interpolate', ['linear'], ['zoom'],
-            15, 2.4,
-            17, 5.2,
-            19, 8.5
-          ]
+          'line-color': colors.serviceCasing,
+          'line-width': ['interpolate', ['linear'], ['zoom'], 15, 2.4, 17, 5.2, 19, 8.5]
         }
       }, beforeId);
       map.addLayer({
@@ -439,44 +737,32 @@ function buildMapHtml(): string {
         filter: serviceFilter,
         layout: { 'line-cap': 'round', 'line-join': 'round' },
         paint: {
-          'line-color': '#ffffff',
-          'line-width': [
-            'interpolate', ['linear'], ['zoom'],
-            15, 1.4,
-            17, 3.4,
-            19, 6
-          ]
+          'line-color': colors.serviceLine,
+          'line-width': ['interpolate', ['linear'], ['zoom'], 15, 1.4, 17, 3.4, 19, 6]
         }
       }, beforeId);
+      var footCasingPaint = {
+        'line-color': colors.footCasing,
+        'line-width': colors.footDashedCasing
+          ? ['interpolate', ['linear'], ['zoom'], 15, 1.8, 17, 3.0, 19, 4.0]
+          : ['interpolate', ['linear'], ['zoom'], 15, 1.8, 17, 3.4, 19, 5.0],
+        'line-opacity': colors.footCasingOpacity
+      };
+      if (colors.footDashedCasing) footCasingPaint['line-dasharray'] = [2, 1.5];
       map.addLayer({
         id: 'foot-casing', type: 'line', source: 'paths',
         filter: footFilter,
-        layout: { 'line-cap': 'butt', 'line-join': 'round' },
-        paint: {
-          'line-color': '#d07c72',
-          'line-dasharray': [2, 1.5],
-          'line-width': [
-            'interpolate', ['linear'], ['zoom'],
-            15, 1.8,
-            17, 3.0,
-            19, 4.0
-          ],
-          'line-opacity': 0.9
-        }
+        layout: { 'line-cap': colors.footDashedCasing ? 'butt' : 'round', 'line-join': 'round' },
+        paint: footCasingPaint
       }, beforeId);
       map.addLayer({
         id: 'foot-line', type: 'line', source: 'paths',
         filter: footFilter,
         layout: { 'line-cap': 'butt', 'line-join': 'round' },
         paint: {
-          'line-color': '#f4a89a',
+          'line-color': colors.footLine,
           'line-dasharray': [2, 1.5],
-          'line-width': [
-            'interpolate', ['linear'], ['zoom'],
-            15, 1.2,
-            17, 2.2,
-            19, 3.0
-          ],
+          'line-width': ['interpolate', ['linear'], ['zoom'], 15, 1.2, 17, 2.2, 19, 3.0],
           'line-opacity': 0.98
         }
       }, beforeId);
@@ -485,18 +771,79 @@ function buildMapHtml(): string {
         filter: stepsFilter,
         layout: { 'line-cap': 'butt', 'line-join': 'round' },
         paint: {
-          'line-color': '#e0897c',
+          'line-color': colors.steps,
           'line-dasharray': [0.5, 0.4],
-          'line-width': [
-            'interpolate', ['linear'], ['zoom'],
-            15, 1.6,
-            17, 2.6,
-            19, 3.4
-          ]
+          'line-width': ['interpolate', ['linear'], ['zoom'], 15, 1.6, 17, 2.6, 19, 3.4]
         }
       }, beforeId);
 
-      map.addSource('buildings', { type: 'geojson', data: buildings, promoteId: 'fid' });
+      if (lamps && lampData.glows.features.length) {
+        map.addSource('lamps', { type: 'geojson', data: lampData.glows });
+        map.addLayer({
+          id: 'lamp-pool', type: 'circle', source: 'lamps',
+          paint: {
+            'circle-radius': metersRadius(1),
+            'circle-color': ['match', ['get', 'kind'], 'vial', lamps.poolVial, lamps.poolPeatonal],
+            'circle-opacity': ['interpolate', ['linear'], ['zoom'], 14, 0.18, 17, 0.36],
+            'circle-blur': 1,
+            'circle-pitch-alignment': 'map',
+            'circle-pitch-scale': 'map'
+          }
+        }, beforeId);
+        map.addLayer({
+          id: 'lamp-glow', type: 'circle', source: 'lamps',
+          paint: {
+            'circle-radius': metersRadius(0.5),
+            'circle-color': lamps.glow,
+            'circle-opacity': ['interpolate', ['linear'], ['zoom'], 14, 0.24, 17, 0.4],
+            'circle-blur': 0.9,
+            'circle-pitch-alignment': 'map',
+            'circle-pitch-scale': 'map'
+          }
+        }, beforeId);
+        map.addLayer({
+          id: 'lamp-core', type: 'circle', source: 'lamps',
+          minzoom: 15,
+          paint: {
+            'circle-radius': metersRadius(0.2),
+            'circle-color': lamps.core,
+            'circle-opacity': ['interpolate', ['linear'], ['zoom'], 15, 0.7, 17, 0.5],
+            'circle-blur': 0.7,
+            'circle-pitch-alignment': 'map',
+            'circle-pitch-scale': 'map'
+          }
+        }, beforeId);
+      }
+
+      if (!map.getLayer('building-3d') && map.getSource('openmaptiles')) {
+        var ramp = colors.baseBuildingRamp;
+        var rampColor = ramp.length === 1
+          ? ramp[0][1]
+          : ['interpolate', ['linear'], ['coalesce', ['get', 'render_height'], 6]].concat(
+              ramp.reduce(function (acc, stop) { return acc.concat(stop); }, [])
+            );
+        map.addLayer({
+          id: 'campus-building-3d',
+          type: 'fill-extrusion',
+          source: 'openmaptiles',
+          'source-layer': 'building',
+          minzoom: 14,
+          filter: ['all',
+            ['!=', ['get', 'hide_3d'], true],
+            ['>', ['coalesce', ['get', 'render_height'], 0], 0]
+          ],
+          paint: {
+            'fill-extrusion-base': ['coalesce', ['get', 'render_min_height'], 0],
+            'fill-extrusion-color': rampColor,
+            'fill-extrusion-height': ['coalesce', ['get', 'render_height'], 0],
+            'fill-extrusion-opacity': 1,
+            'fill-extrusion-vertical-gradient': colors.buildingGradient
+          }
+        }, beforeId);
+      }
+
+      var tones = colors.buildings;
+      map.addSource('buildings', { type: 'geojson', data: campus.buildings, promoteId: 'fid' });
       map.addLayer({
         id: 'buildings-hit', type: 'fill', source: 'buildings',
         paint: { 'fill-color': '#000000', 'fill-opacity': 0.01 }
@@ -505,8 +852,8 @@ function buildMapHtml(): string {
         id: 'buildings-footprint', type: 'fill', source: 'buildings',
         filter: ['>', ['coalesce', ['get', 'height_m'], 0], 0],
         paint: {
-          'fill-color': '#5b6672',
-          'fill-opacity': 0.14,
+          'fill-color': colors.footprint,
+          'fill-opacity': colors.footprintOpacity,
           'fill-translate': [2, 4]
         }
       }, beforeId);
@@ -517,29 +864,68 @@ function buildMapHtml(): string {
           'fill-extrusion-color': [
             'case',
             ['boolean', ['feature-state', 'selected'], false],
-            '#950606',
+            colors.selected,
             [
               'match', ['get', 'tone'],
-              'library', '#e8eef1',
-              'food', '#efe8de',
-              'culture', '#ebe6ea',
-              'sport', '#e2ebe5',
-              'tower', '#d0cbc3',
-              'mid', '#ddd8d0',
-              '#e7e2d9'
+              'library', tones.library,
+              'food', tones.food,
+              'culture', tones.culture,
+              'sport', tones.sport,
+              'tower', tones.tower,
+              'mid', tones.mid,
+              tones.stone
             ]
           ],
           'fill-extrusion-height': ['get', 'height_m'],
           'fill-extrusion-base': 0,
-          'fill-extrusion-opacity': 0.96,
-          'fill-extrusion-vertical-gradient': true
+          'fill-extrusion-opacity': colors.buildingOpacity,
+          'fill-extrusion-vertical-gradient': colors.buildingGradient
         }
       }, beforeId);
+      map.addLayer({
+        id: 'buildings-selected', type: 'line', source: 'buildings',
+        layout: { 'line-join': 'round' },
+        paint: {
+          'line-color': colors.selected,
+          'line-width': ['interpolate', ['linear'], ['zoom'], 15, 1.5, 17, 2.5, 19, 3.5],
+          'line-opacity': ['case', ['boolean', ['feature-state', 'selected'], false], night ? 1 : 0.9, 0]
+        }
+      }, beforeId);
+
+      if (lamps) {
+        map.addSource('lamp-models', { type: 'geojson', data: lampData.models });
+        map.addLayer({
+          id: 'lamp-3d', type: 'fill-extrusion', source: 'lamp-models',
+          minzoom: 16.5,
+          filter: ['!=', ['get', 'part'], 'bulb'],
+          paint: {
+            'fill-extrusion-color': ['match', ['get', 'part'], 'head', lamps.head, lamps.metal],
+            'fill-extrusion-base': ['get', 'base'],
+            'fill-extrusion-height': ['get', 'height'],
+            'fill-extrusion-opacity': 1,
+            'fill-extrusion-vertical-gradient': true
+          }
+        }, beforeId);
+        map.addLayer({
+          id: 'lamp-bulb', type: 'fill-extrusion', source: 'lamp-models',
+          minzoom: 16.5,
+          filter: ['==', ['get', 'part'], 'bulb'],
+          paint: {
+            'fill-extrusion-color': ['case', ['boolean', ['get', 'lit'], true], lamps.bulb, lamps.bulbOff],
+            'fill-extrusion-base': ['get', 'base'],
+            'fill-extrusion-height': ['get', 'height'],
+            'fill-extrusion-opacity': 1,
+            'fill-extrusion-vertical-gradient': false
+          }
+        }, beforeId);
+      }
+
       map.addLayer({
         id: 'buildings-labels', type: 'symbol', source: 'buildings',
         minzoom: 16.2,
         layout: {
           'text-field': ['coalesce', ['get', 'label'], ''],
+          'text-font': ['Noto Sans Bold'],
           'text-size': [
             'interpolate', ['linear'], ['zoom'],
             16.2, 10,
@@ -554,26 +940,27 @@ function buildMapHtml(): string {
           'text-color': [
             'case',
             ['boolean', ['feature-state', 'selected'], false],
-            '#ffffff',
-            '#3a424c'
+            colors.labelSelected,
+            colors.label
           ],
           'text-halo-color': [
             'case',
             ['boolean', ['feature-state', 'selected'], false],
-            'rgba(17,17,17,0.88)',
-            'rgba(248,250,252,0.94)'
+            colors.labelSelectedHalo,
+            colors.labelHalo
           ],
           'text-halo-width': 1.5
         }
       });
 
+      var passages = campus.passages;
       if (passages && passages.features && passages.features.length) {
         map.addSource('pasillos', { type: 'geojson', data: passages });
         map.addLayer({
           id: 'pasillos-casing', type: 'line', source: 'pasillos',
           layout: { 'line-cap': 'round', 'line-join': 'round' },
           paint: {
-            'line-color': '#ffffff',
+            'line-color': colors.passageCasing,
             'line-width': [
               'interpolate', ['linear'], ['zoom'],
               15, 4.5,
@@ -587,7 +974,7 @@ function buildMapHtml(): string {
           id: 'pasillos-line', type: 'line', source: 'pasillos',
           layout: { 'line-cap': 'round', 'line-join': 'round' },
           paint: {
-            'line-color': '#6d5b95',
+            'line-color': colors.passageLine,
             'line-width': [
               'interpolate', ['linear'], ['zoom'],
               15, 2.4,
@@ -605,10 +992,74 @@ function buildMapHtml(): string {
         } catch (e) {}
       }
 
-      map.fitBounds(
-        [[${CAMPUS_BOUNDS.minLon}, ${CAMPUS_BOUNDS.minLat}], [${CAMPUS_BOUNDS.maxLon}, ${CAMPUS_BOUNDS.maxLat}]],
-        { padding: 48, pitch: 58, bearing: -28, duration: 900 }
-      );
+      drawRouteLine();
+    }
+
+    function revealMap() {
+      if (!styleBusy) veil.classList.remove('on');
+    }
+
+    function finishThemeChange() {
+      styleBusy = false;
+      post({ type: 'theme-ready', theme: theme });
+      var fallback = setTimeout(revealMap, 1200);
+      map.once('idle', function () {
+        clearTimeout(fallback);
+        revealMap();
+      });
+      if (pendingTheme) {
+        var next = pendingTheme;
+        pendingTheme = null;
+        window.setMapTheme(next);
+      }
+    }
+
+    map.on('style.load', function () {
+      applyBaseTheme();
+      addCampusLayers();
+      finishThemeChange();
+    });
+
+    /** setStyle borra fuentes y capas propias; style.load las vuelve a poner desde window.__campus. */
+    window.setMapTheme = function (next) {
+      if (!CONFIG.styles[next]) return;
+      if (styleBusy) {
+        pendingTheme = next;
+        return;
+      }
+      if (next === theme) {
+        post({ type: 'theme-ready', theme: theme });
+        return;
+      }
+      styleBusy = true;
+      theme = next;
+      veil.style.background = CONFIG.backdrops[next];
+      veil.classList.add('on');
+      setTimeout(function () {
+        document.documentElement.dataset.theme = theme;
+        document.body.dataset.theme = theme;
+        map.setStyle(CONFIG.styles[theme], { diff: false });
+      }, 180);
+    };
+
+    window.loadCampusLayers = function (buildings, paths, passages, lamps) {
+      campus = {
+        buildings: buildings,
+        paths: paths,
+        passages: passages,
+        lamps: lamps || { type: 'FeatureCollection', features: [] }
+      };
+      window.__campus = campus;
+      lampData = buildLampData(campus.lamps);
+      if (!styleBusy) addCampusLayers();
+
+      if (!cameraFitted) {
+        cameraFitted = true;
+        map.fitBounds(
+          [[${CAMPUS_BOUNDS.minLon}, ${CAMPUS_BOUNDS.minLat}], [${CAMPUS_BOUNDS.maxLon}, ${CAMPUS_BOUNDS.maxLat}]],
+          { padding: 48, pitch: 58, bearing: -28, duration: 900 }
+        );
+      }
 
       post({ type: 'ready' });
     };
@@ -671,6 +1122,11 @@ export function CampusMap() {
   const [relocatingEntranceId, setRelocatingEntranceId] = useState<string | null>(null);
   const [entranceOverrides, setEntranceOverrides] = useState<Record<string, LatLng>>({});
   const [streetProfile, setStreetProfile] = useState<StreetProfile>("foot-walking");
+  const { mode: themeMode, theme: mapTheme, initialTheme, setMode: setThemeMode } = useMapTheme();
+  const [mapLoaded, setMapLoaded] = useState(false);
+  const [themeBusy, setThemeBusy] = useState(false);
+  const [themeMenuOpen, setThemeMenuOpen] = useState(false);
+  const webThemeRef = useRef<MapTheme | null>(null);
   const activeSlotRef = useRef<RouteSlot>(activeSlot);
   const tabRef = useRef<MapPanel>(tab);
   const chromeBottomRef = useRef(220);
@@ -731,7 +1187,7 @@ export function CampusMap() {
     [entranceOverrides],
   );
 
-  const html = useMemo(() => buildMapHtml(), []);
+  const html = useMemo(() => (initialTheme ? buildMapHtml(initialTheme) : null), [initialTheme]);
   useEffect(() => {
     let cancelled = false;
     void (async () => {
@@ -755,6 +1211,7 @@ export function CampusMap() {
   );
   const paths = useMemo(() => aristasRed, []);
   const passages = useMemo(() => pasillos, []);
+  const lamps = useMemo(() => postes, []);
   const places = useMemo(
     () => listCampusPlaces(edificios as unknown as GeoJsonFeatureCollection, catalog),
     [catalog],
@@ -779,12 +1236,12 @@ export function CampusMap() {
   }, [selected, inject]);
 
   const injectLayers = useCallback(() => {
-    const payload = JSON.stringify({ buildings, paths, passages });
+    const payload = JSON.stringify({ buildings, paths, passages, lamps });
     inject(`
       try {
         var data = ${payload};
         if (typeof window.loadCampusLayers === 'function') {
-          window.loadCampusLayers(data.buildings, data.paths, data.passages);
+          window.loadCampusLayers(data.buildings, data.paths, data.passages, data.lamps);
         }
       } catch (e) {
         if (window.ReactNativeWebView) {
@@ -792,7 +1249,18 @@ export function CampusMap() {
         }
       }
     `);
-  }, [buildings, paths, passages, inject]);
+  }, [buildings, paths, passages, lamps, inject]);
+
+  useEffect(() => {
+    if (!mapLoaded || !mapTheme) return;
+    if (webThemeRef.current == null) webThemeRef.current = initialTheme;
+    if (mapTheme === webThemeRef.current) return;
+    webThemeRef.current = mapTheme;
+    setThemeBusy(true);
+    const label = mapTheme === "night" ? "Cambiando a noche…" : "Cambiando a día…";
+    setStatus(label);
+    inject(`if (typeof window.setMapTheme === 'function') window.setMapTheme('${mapTheme}');`);
+  }, [mapLoaded, mapTheme, initialTheme, inject]);
 
   const syncMarkers = useCallback(
     (nextOrigin: LatLng | null, nextDestination: LatLng | null) => {
@@ -1515,7 +1983,11 @@ export function CampusMap() {
         };
         if (data.type === "map-ready") {
           setStatus("Preparando campus…");
+          setMapLoaded(true);
           injectLayers();
+        } else if (data.type === "theme-ready") {
+          setThemeBusy(false);
+          setStatus((prev) => (prev.startsWith("Cambiando a ") ? "" : prev));
         } else if (data.type === "ready") {
           setStatus("");
           inject(
@@ -1526,6 +1998,7 @@ export function CampusMap() {
         } else if (data.type === "map-click") {
           Keyboard.dismiss();
           setQuery("");
+          setThemeMenuOpen(false);
           if (typeof data.longitude === "number" && typeof data.latitude === "number") {
             const point = { longitude: data.longitude, latitude: data.latitude };
             const relocatingId = relocatingRef.current;
@@ -1674,22 +2147,26 @@ export function CampusMap() {
   }, [chromeBottom, inject]);
 
   return (
-    <View className="flex-1 bg-[#dbe4ee]">
-      <UniWebView
-        ref={webRef}
-        originWhitelist={["*"]}
-        source={{ html }}
-        className="z-0 flex-1 bg-[#dbe4ee]"
-        onMessage={onMessage}
-        onError={() => setStatus("No se pudo cargar el mapa (revisa internet)")}
-        javaScriptEnabled
-        domStorageEnabled
-        setSupportMultipleWindows={false}
-        mixedContentMode="always"
-        allowsInlineMediaPlayback
-        nestedScrollEnabled
-        androidLayerType="hardware"
-      />
+    <View className="flex-1 bg-[#dbe4ee] dark:bg-[#070b12]">
+      {html ? (
+        <UniWebView
+          ref={webRef}
+          originWhitelist={["*"]}
+          source={{ html }}
+          className="z-0 flex-1 bg-[#dbe4ee] dark:bg-[#070b12]"
+          onMessage={onMessage}
+          onError={() => setStatus("No se pudo cargar el mapa (revisa internet)")}
+          javaScriptEnabled
+          domStorageEnabled
+          setSupportMultipleWindows={false}
+          mixedContentMode="always"
+          allowsInlineMediaPlayback
+          nestedScrollEnabled
+          androidLayerType="hardware"
+        />
+      ) : (
+        <View className="flex-1" />
+      )}
 
       <MapHeader
         topInset={insets.top}
@@ -1708,6 +2185,12 @@ export function CampusMap() {
         onToggleView={toggleView}
         locating={locating}
         onLocate={locateMe}
+        themeMode={themeMode}
+        theme={mapTheme}
+        themeBusy={themeBusy}
+        themeMenuOpen={themeMenuOpen}
+        onThemeMenuOpenChange={setThemeMenuOpen}
+        onThemeModeChange={setThemeMode}
       />
 
       {exploreSheet.mounted && shownPlace ? (

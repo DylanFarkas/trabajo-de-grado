@@ -1,7 +1,7 @@
 import { Keyboard, Pressable, Text, View } from "react-native";
-import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { Icon } from "@/components/Icon";
 import { useMapPanel } from "@/map-panel";
 
 export type HomeTab = "map" | "tours" | "assistant" | "profile";
@@ -52,7 +52,7 @@ export function HomeTabs() {
 
   return (
     <View
-      className="flex-row items-end border-t border-[#ebebef] bg-white"
+      className="flex-row items-end border-t border-[#ebebef] bg-white dark:border-[#1a212c] dark:bg-[#0d1219]"
       style={{
         height: homeTabBarHeight(insets.bottom),
         paddingTop: TAB_TOP_PADDING,
@@ -62,7 +62,6 @@ export function HomeTabs() {
     >
       {TABS.map((item) => {
         const active = tab === item.id;
-        const color = active ? "#111111" : "#969696";
         return (
           <Pressable
             key={item.id}
@@ -73,9 +72,21 @@ export function HomeTabs() {
             className="h-14 flex-1 items-center justify-center active:opacity-80"
           >
             <View className="h-7 w-14 items-center justify-center rounded-xl">
-              <MaterialIcons name={item.icon} size={22} color={color} />
+              <Icon
+                name={item.icon}
+                size={22}
+                colorClassName={
+                  active
+                    ? "accent-[#111111] dark:accent-[#f2f4f7]"
+                    : "accent-[#969696] dark:accent-[#6b7584]"
+                }
+              />
             </View>
-            <Text className="mt-0.5 text-[10px] font-medium" style={{ color }}>
+            <Text
+              className={`mt-0.5 text-[10px] font-medium ${
+                active ? "text-[#111111] dark:text-[#f2f4f7]" : "text-[#969696] dark:text-[#6b7584]"
+              }`}
+            >
               {item.label}
             </Text>
           </Pressable>

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
-import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 
+import { Icon } from "@/components/Icon";
 import { SnapSheet } from "@/components/SnapSheet";
 import type { CampusEntrance } from "@/constants/entrances";
 import type { StreetProfile } from "@/routing/openRouteService";
@@ -58,7 +58,7 @@ function ModeToggle({
   ];
   return (
     <View
-      className={`mb-4 flex-row rounded-2xl bg-[#f2f2f4] p-1 ${disabled ? "opacity-50" : ""}`}
+      className={`mb-4 flex-row rounded-2xl bg-[#f2f2f4] p-1 dark:bg-[#1a212c] ${disabled ? "opacity-50" : ""}`}
       accessibilityRole="tablist"
     >
       {options.map((option) => {
@@ -72,11 +72,21 @@ function ModeToggle({
             disabled={disabled}
             onPress={() => onChange?.(option.id)}
             className={`h-11 flex-1 flex-row items-center justify-center rounded-xl active:opacity-80 ${
-              on ? "bg-white shadow-sm" : ""
+              on ? "bg-white shadow-sm dark:bg-[#2a3342]" : ""
             }`}
           >
-            <MaterialIcons name={option.icon} size={18} color={on ? "#111111" : "#8e8e93"} />
-            <Text className={`ml-2 text-sm font-bold ${on ? "text-[#111111]" : "text-[#8e8e93]"}`}>
+            <Icon
+              name={option.icon}
+              size={18}
+              colorClassName={
+                on ? "accent-[#111111] dark:accent-[#f2f4f7]" : "accent-[#8e8e93] dark:accent-[#7b8594]"
+              }
+            />
+            <Text
+              className={`ml-2 text-sm font-bold ${
+                on ? "text-[#111111] dark:text-[#f2f4f7]" : "text-[#8e8e93] dark:text-[#7b8594]"
+              }`}
+            >
               {option.label}
             </Text>
           </Pressable>
@@ -105,7 +115,9 @@ function EndpointRow({
   return (
     <View
       className={`min-h-14 flex-row items-center rounded-2xl px-3 ${
-        active ? "bg-white shadow-[0_0_0_2px_#111111]" : ""
+        active
+          ? "bg-white shadow-[0_0_0_2px_#111111] dark:bg-[#10151d] dark:shadow-[0_0_0_2px_#f2f4f7]"
+          : ""
       }`}
     >
       <Pressable
@@ -116,14 +128,20 @@ function EndpointRow({
         className="min-h-14 min-w-0 flex-1 flex-row items-center active:opacity-70"
       >
         <View
-          className={`mr-3 size-3 rounded-full ${isOrigin ? "border-[3px] border-[#111111]" : "bg-[#1d4ed8]"}`}
+          className={`mr-3 size-3 rounded-full ${
+            isOrigin
+              ? "border-[3px] border-[#111111] dark:border-[#f2f4f7]"
+              : "bg-[#1d4ed8] dark:bg-[#60a5fa]"
+          }`}
         />
         <View className="min-w-0 flex-1">
-          <Text className="text-[11px] font-semibold uppercase tracking-wide text-[#8e8e93]">
+          <Text className="text-[11px] font-semibold uppercase tracking-wide text-[#8e8e93] dark:text-[#8b95a5]">
             {label}
           </Text>
           <Text
-            className={`text-[15px] font-semibold ${value ? "text-[#111111]" : "text-[#aeaeb2]"}`}
+            className={`text-[15px] font-semibold ${
+              value ? "text-[#111111] dark:text-[#f2f4f7]" : "text-[#aeaeb2] dark:text-[#5f6978]"
+            }`}
             numberOfLines={1}
           >
             {value ?? placeholder}
@@ -136,9 +154,9 @@ function EndpointRow({
           accessibilityLabel={`Quitar ${label.toLowerCase()}`}
           hitSlop={8}
           onPress={onClear}
-          className="ml-2 size-7 items-center justify-center rounded-full bg-[#ececef] active:opacity-80"
+          className="ml-2 size-7 items-center justify-center rounded-full bg-[#ececef] active:opacity-80 dark:bg-[#232c3a]"
         >
-          <MaterialIcons name="close" size={14} color="#6b6b70" />
+          <Icon name="close" size={14} colorClassName="accent-[#6b6b70] dark:accent-[#aab4c3]" />
         </Pressable>
       ) : null}
     </View>
@@ -224,9 +242,9 @@ export function RouteSheet({
               accessibilityLabel="Volver"
               onPress={onCloseCampusPicker}
               hitSlop={8}
-              className="mr-2 size-8 items-center justify-center rounded-full bg-[#f2f2f4] active:opacity-80"
+              className="mr-2 size-8 items-center justify-center rounded-full bg-[#f2f2f4] active:opacity-80 dark:bg-[#1f2632]"
             >
-              <MaterialIcons name="arrow-back" size={18} color="#111111" />
+              <Icon name="arrow-back" size={18} colorClassName="accent-[#111111] dark:accent-[#f2f4f7]" />
             </Pressable>
           ) : null}
           <Pressable
@@ -234,13 +252,19 @@ export function RouteSheet({
             onPress={toggle}
             className="mr-2 min-w-0 flex-1 active:opacity-70"
           >
-            <Text className="text-lg font-bold tracking-tight text-[#111111]" numberOfLines={1}>
+            <Text className="text-lg font-bold tracking-tight text-[#111111] dark:text-[#f2f4f7]" numberOfLines={1}>
               {title}
             </Text>
             <View className="mt-0.5 flex-row items-center">
-              {routing ? <ActivityIndicator size="small" color="#8e8e93" /> : null}
+              {routing ? (
+                <ActivityIndicator size="small" colorClassName="accent-[#8e8e93] dark:accent-[#8b95a5]" />
+              ) : null}
               <Text
-                className={`text-[13px] mb-2 ${distanceLabel ? "font-semibold text-[#1d4ed8]" : "text-[#8e8e93]"} ${
+                className={`text-[13px] mb-2 ${
+                  distanceLabel
+                    ? "font-semibold text-[#1d4ed8] dark:text-[#7cb2ff]"
+                    : "text-[#8e8e93] dark:text-[#8b95a5]"
+                } ${
                   routing ? "ml-2" : ""
                 }`}
                 numberOfLines={1}
@@ -254,18 +278,22 @@ export function RouteSheet({
             accessibilityLabel={expanded ? "Minimizar ruta" : "Mostrar ruta"}
             onPress={toggle}
             hitSlop={6}
-            className="mr-2 size-8 items-center justify-center rounded-full bg-[#f2f2f4] active:opacity-80"
+            className="mr-2 size-8 items-center justify-center rounded-full bg-[#f2f2f4] active:opacity-80 dark:bg-[#1f2632]"
           >
-            <MaterialIcons name={expanded ? "expand-more" : "expand-less"} size={20} color="#3a3a3c" />
+            <Icon
+              name={expanded ? "expand-more" : "expand-less"}
+              size={20}
+              colorClassName="accent-[#3a3a3c] dark:accent-[#c5ccd6]"
+            />
           </Pressable>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Terminar ruta"
             onPress={onClose}
             hitSlop={6}
-            className="size-8 items-center justify-center rounded-full bg-[#f2f2f4] active:opacity-80"
+            className="size-8 items-center justify-center rounded-full bg-[#f2f2f4] active:opacity-80 dark:bg-[#1f2632]"
           >
-            <MaterialIcons name="close" size={18} color="#3a3a3c" />
+            <Icon name="close" size={18} colorClassName="accent-[#3a3a3c] dark:accent-[#c5ccd6]" />
           </Pressable>
         </View>
       )}
@@ -280,21 +308,21 @@ export function RouteSheet({
               accessibilityLabel={`Ir por ${entrance.name}`}
               disabled={routing}
               onPress={() => onSelectEntrance?.(entrance)}
-              className="mb-2 flex-row items-center rounded-2xl bg-[#f7f7f8] px-4 py-3 active:opacity-80"
+              className="mb-2 flex-row items-center rounded-2xl bg-[#f7f7f8] px-4 py-3 active:opacity-80 dark:bg-[#18202a]"
             >
-              <View className="mr-3 size-8 items-center justify-center rounded-full bg-[#111111]">
-                <Text className="text-sm font-extrabold text-white">{index + 1}</Text>
+              <View className="mr-3 size-8 items-center justify-center rounded-full bg-[#111111] dark:bg-[#f2f4f7]">
+                <Text className="text-sm font-extrabold text-white dark:text-[#0b0f16]">{index + 1}</Text>
               </View>
               <Text
-                className="mr-3 min-w-0 flex-1 text-[15px] font-semibold text-[#111111]"
+                className="mr-3 min-w-0 flex-1 text-[15px] font-semibold text-[#111111] dark:text-[#f2f4f7]"
                 numberOfLines={1}
               >
                 {entrance.name}
               </Text>
               {routing ? (
-                <ActivityIndicator size="small" color="#111111" />
+                <ActivityIndicator size="small" colorClassName="accent-[#111111] dark:accent-[#f2f4f7]" />
               ) : (
-                <MaterialIcons name="arrow-forward" size={20} color="#111111" />
+                <Icon name="arrow-forward" size={20} colorClassName="accent-[#111111] dark:accent-[#f2f4f7]" />
               )}
             </Pressable>
           ))}
@@ -308,15 +336,19 @@ export function RouteSheet({
                 <View className="mr-3 items-center">
                   <View
                     className={`size-7 items-center justify-center rounded-full ${
-                      last ? "bg-[#1d4ed8]" : "bg-[#111111]"
+                      last ? "bg-[#1d4ed8] dark:bg-[#3b82f6]" : "bg-[#111111] dark:bg-[#f2f4f7]"
                     }`}
                   >
-                    <Text className="text-xs font-bold text-white">{stop.letter}</Text>
+                    <Text
+                      className={`text-xs font-bold text-white ${last ? "" : "dark:text-[#0b0f16]"}`}
+                    >
+                      {stop.letter}
+                    </Text>
                   </View>
-                  {!last ? <View className="w-0.5 flex-1 bg-[#e0e0e5]" /> : null}
+                  {!last ? <View className="w-0.5 flex-1 bg-[#e0e0e5] dark:bg-[#2c3441]" /> : null}
                 </View>
                 <Text
-                  className="min-w-0 flex-1 pb-4 pt-1 text-[15px] font-semibold text-[#111111]"
+                  className="min-w-0 flex-1 pb-4 pt-1 text-[15px] font-semibold text-[#111111] dark:text-[#f2f4f7]"
                   numberOfLines={2}
                 >
                   {stop.name}
@@ -328,7 +360,7 @@ export function RouteSheet({
       ) : (
         <View>
           {pendingPresetName ? null : (
-            <View className="flex-row items-center rounded-[20px] bg-[#f7f7f8] p-1">
+            <View className="flex-row items-center rounded-[20px] bg-[#f7f7f8] p-1 dark:bg-[#18202a]">
               <View className="min-w-0 flex-1">
                 <EndpointRow
                   slot="origin"
@@ -350,11 +382,11 @@ export function RouteSheet({
                 accessibilityLabel="Intercambiar salida y llegada"
                 disabled={!canSwap}
                 onPress={onSwap}
-                className={`mx-2 size-9 items-center justify-center rounded-full bg-white active:opacity-80 ${
+                className={`mx-2 size-9 items-center justify-center rounded-full bg-white active:opacity-80 dark:bg-[#232c3a] ${
                   canSwap ? "" : "opacity-35"
                 }`}
               >
-                <MaterialIcons name="swap-vert" size={20} color="#3a3a3c" />
+                <Icon name="swap-vert" size={20} colorClassName="accent-[#3a3a3c] dark:accent-[#c5ccd6]" />
               </Pressable>
             </View>
           )}
@@ -366,23 +398,23 @@ export function RouteSheet({
                 accessibilityLabel="Usar mi ubicación como salida"
                 disabled={locating}
                 onPress={onUseMyLocation}
-                className="h-12 flex-row items-center justify-center rounded-2xl bg-[#111111] active:opacity-80"
+                className="h-12 flex-row items-center justify-center rounded-2xl bg-[#111111] active:opacity-80 dark:bg-[#f2f4f7]"
               >
                 {locating ? (
-                  <ActivityIndicator size="small" color="#ffffff" />
+                  <ActivityIndicator size="small" colorClassName="accent-white dark:accent-[#0b0f16]" />
                 ) : (
-                  <MaterialIcons name="my-location" size={18} color="#ffffff" />
+                  <Icon name="my-location" size={18} colorClassName="accent-white dark:accent-[#0b0f16]" />
                 )}
-                <Text className="ml-2 text-[15px] font-bold text-white">Usar mi ubicación</Text>
+                <Text className="ml-2 text-[15px] font-bold text-white dark:text-[#0b0f16]">Usar mi ubicación</Text>
               </Pressable>
-              <Text className="mt-2 text-center font-sans text-xs text-[#8e8e93]">
+              <Text className="mt-2 text-center font-sans text-xs text-[#8e8e93] dark:text-[#8b95a5]">
                 O búscalo arriba, o toca un edificio en el mapa
               </Text>
             </View>
           ) : null}
 
           {searchSlot === "destination" ? (
-            <Text className="mt-3 text-center font-sans text-xs text-[#8e8e93]">
+            <Text className="mt-3 text-center font-sans text-xs text-[#8e8e93] dark:text-[#8b95a5]">
               Búscalo arriba o toca un edificio en el mapa
             </Text>
           ) : null}
@@ -394,11 +426,11 @@ export function RouteSheet({
                 accessibilityRole="button"
                 accessibilityLabel="Ir al campus"
                 onPress={onOpenCampusPicker}
-                className="h-12 items-center justify-center rounded-2xl bg-[#111111] active:opacity-80"
+                className="h-12 items-center justify-center rounded-2xl bg-[#111111] active:opacity-80 dark:bg-[#f2f4f7]"
               >
-                <Text className="text-[15px] font-bold text-white">Ir al campus</Text>
+                <Text className="text-[15px] font-bold text-white dark:text-[#0b0f16]">Ir al campus</Text>
               </Pressable>
-              <Text className="mt-2 text-center font-sans text-xs text-[#8e8e93]">
+              <Text className="mt-2 text-center font-sans text-xs text-[#8e8e93] dark:text-[#8b95a5]">
                 Luego elige Carrera 86, Calle 16 o Calle 13
               </Text>
             </View>
@@ -407,9 +439,9 @@ export function RouteSheet({
       )}
 
       {error ? (
-        <View className="mt-3 flex-row items-start rounded-2xl bg-[#fff5f5] px-3 py-3">
-          <MaterialIcons name="info-outline" size={18} color="#b42318" />
-          <Text className="ml-2 flex-1 text-[13px] font-semibold leading-5 text-[#b42318]">
+        <View className="mt-3 flex-row items-start rounded-2xl bg-[#fff5f5] px-3 py-3 dark:bg-[#2a1517]">
+          <Icon name="info-outline" size={18} colorClassName="accent-[#b42318] dark:accent-[#ff9b93]" />
+          <Text className="ml-2 flex-1 text-[13px] font-semibold leading-5 text-[#b42318] dark:text-[#ff9b93]">
             {error}
           </Text>
         </View>
