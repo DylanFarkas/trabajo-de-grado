@@ -5,11 +5,11 @@ import { PlaceForm } from "@/app/(admin)/places/place-form";
 import { StatusPill } from "@/components/catalog/status-pill";
 import { PageHeader } from "@/components/layout/page-header";
 import { buttonClass } from "@/components/ui/button";
-import { contributionStatusLabel, kindLabel } from "@/lib/catalog";
+import { contributionStatusLabel } from "@/lib/catalog";
 import { excerpt, formatDate } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 
-export default async function PlacePage({
+export default async function EspacioPage({
   params,
 }: {
   params: Promise<{ id: string }>;
@@ -27,7 +27,7 @@ export default async function PlacePage({
       .order("created_at", { ascending: false }),
   ]);
 
-  if (!place || place.kind !== "building") notFound();
+  if (!place || place.kind !== "space") notFound();
   const selected = new Set((assigned ?? []).map((row) => row.category_id as string));
 
   return (
@@ -35,13 +35,13 @@ export default async function PlacePage({
       <PageHeader
         crumbs={[
           { href: "/", label: "Inicio" },
-          { href: "/places", label: "Edificios" },
+          { href: "/espacios", label: "Espacios" },
           { label: place.id },
         ]}
         title={place.name}
-        subtitle={`${place.id} · ${kindLabel(place.kind)}`}
+        subtitle={place.id}
       />
-      <PlaceForm place={place} categories={categories ?? []} selected={selected} />
+      <PlaceForm place={place} categories={categories ?? []} selected={selected} lockKind />
 
       <section className="mt-6 rounded-2xl border border-zinc-200 bg-[#ffffff] p-6 dark:border-none dark:bg-[#171717]">
         <div className="flex items-start justify-between gap-4">

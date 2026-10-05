@@ -172,7 +172,7 @@ export function MyContributions({ userId }: { userId: string }) {
           </View>
           <Text className="mt-4 text-center text-[15px] font-bold text-[#111111]">Aún no has aportado</Text>
           <Text className="mt-1 text-center font-sans text-[13px] leading-5 text-[#6e6e73]">
-            Toca un edificio en el mapa, elige “Ver más detalles” y cuéntale a la comunidad qué hay ahí.
+            Toca un lugar en el mapa, elige “Ver más detalles” y cuéntale a la comunidad qué hay ahí.
           </Text>
         </View>
       ) : (

@@ -2,7 +2,13 @@ import nodosJson from "@/assets/geojson/nodos.json";
 import aristasJson from "@/assets/geojson/aristas_red.json";
 import pasillosJson from "@/assets/geojson/pasillos.json";
 import entradasJson from "@/assets/geojson/entradas.json";
-import type { GeoJsonFeatureCollection, GeoJsonPosition } from "@/types/campus";
+import espaciosJson from "@/assets/geojson/espacios.json";
+import type {
+  GeoJsonFeatureCollection,
+  GeoJsonPosition,
+  SpaceFeatureCollection,
+  SpaceKind,
+} from "@/types/campus";
 
 export type LatLng = { latitude: number; longitude: number };
 
@@ -293,6 +299,160 @@ function splicePassages(nodes: Map<number, GraphNode>, raw: RawEdge[]) {
   }
 }
 
+const SPACE_KINDS = new Set<SpaceKind>(["bano", "parqueadero", "cancha"]);
+const SPACE_ID = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;
+
+type SpaceNode = {
+  id: string;
+  nombre: string;
+  tipo: SpaceKind;
+  edificio: string | null;
+  notas: string | null;
+  etiqueta: string | null;
+  coordinate: LatLng;
+  nodeId: number | null;
+};
+
+/** Filled while the graph is built. `nodeId` is the point a route can end on. */
+const SPACE_LIST: SpaceNode[] = [];
+
+export type CampusSpace = {
+  id: string;
+  nombre: string;
+  tipo: SpaceKind;
+  edificio: string | null;
+  notas: string | null;
+  etiqueta: string | null;
+  /** Punto definido en el GeoJSON. */
+  coordinate: LatLng;
+  /** Tiene un nodo en el grafo, así que se puede rutear hasta ahí. */
+  reachable: boolean;
+};
+
+function isSpaceKind(value: unknown): value is SpaceKind {
+  return typeof value === "string" && SPACE_KINDS.has(value as SpaceKind);
+}
+
+function ringCentroid(ring: GeoJsonPosition[]): [number, number] | null {
+  if (ring.length < 4) return null;
+  let area = 0;
+  let cx = 0;
+  let cy = 0;
+  for (let i = 0; i < ring.length - 1; i++) {
+    const x1 = ring[i][0];
+    const y1 = ring[i][1];
+    const x2 = ring[i + 1][0];
+    const y2 = ring[i + 1][1];
+    const cross = x1 * y2 - x2 * y1;
+    area += cross;
+    cx += (x1 + x2) * cross;
+    cy += (y1 + y2) * cross;
+  }
+  if (Math.abs(area) < 1e-14) return null;
+  return [cx / (3 * area), cy / (3 * area)];
+}
+
+function spaceAnchor(feature: SpaceFeatureCollection["features"][number]): [number, number] | null {
+  const centro = feature.properties?.centro;
+  if (Array.isArray(centro) && centro.length >= 2) {
+    const longitude = Number(centro[0]);
+    const latitude = Number(centro[1]);
+    if (Number.isFinite(longitude) && Number.isFinite(latitude)) return [longitude, latitude];
+  }
+  const geometry = feature.geometry;
+  if (!geometry) return null;
+  if (geometry.type === "Point") return asLonLat(geometry.coordinates);
+  if (geometry.type === "Polygon") return ringCentroid(geometry.coordinates[0] ?? []);
+  if (geometry.type === "MultiPolygon") return ringCentroid(geometry.coordinates[0]?.[0] ?? []);
+  return null;
+}
+
+function textOrNull(value: unknown): string | null {
+  if (value == null || value === "") return null;
+  const text = String(value).trim();
+  return text || null;
+}
+
+/**
+ * Custom spaces are points (or the center of an area), not corridors.
+ * Each one is cut into the nearest path. Indoors, with no path nearby,
+ * the route ends at the building door.
+ */
+function spliceSpaces(nodes: Map<number, GraphNode>, raw: RawEdge[]) {
+  SPACE_LIST.length = 0;
+  const spaces = espaciosJson as unknown as SpaceFeatureCollection;
+  let maxId = 0;
+  for (const id of nodes.keys()) maxId = Math.max(maxId, id);
+  const nextId = { value: maxId + 1 };
+  const seen = new Set<string>();
+
+  for (const feature of spaces.features ?? []) {
+    const props = feature.properties;
+    const id = textOrNull(props?.id);
+    const nombre = textOrNull(props?.nombre);
+    if (!id || !SPACE_ID.test(id) || !nombre || !isSpaceKind(props?.tipo) || seen.has(id)) continue;
+    const anchor = spaceAnchor(feature);
+    if (!anchor) continue;
+    seen.add(id);
+
+    const edificio = buildingCode(props.edificio);
+    let snappedId = snapEndpoint(anchor, nodes, raw, nextId, true);
+    if (snappedId == null && edificio) {
+      snappedId = ENTRANCE_NODES.get(edificio)?.[0] ?? null;
+    }
+
+    let nodeId: number | null = null;
+    if (snappedId != null) {
+      const snapped = nodes.get(snappedId);
+      nodeId = snappedId;
+      if (snapped) {
+        const gap = haversineM(
+          { longitude: anchor[0], latitude: anchor[1] },
+          { longitude: snapped.longitude, latitude: snapped.latitude },
+        );
+        if (gap > 0.4) {
+          nodeId = nextId.value++;
+          nodes.set(nodeId, { id: nodeId, longitude: anchor[0], latitude: anchor[1] });
+          raw.push({
+            from: snappedId,
+            to: nodeId,
+            weight: gap,
+            coords: [
+              [snapped.longitude, snapped.latitude],
+              [anchor[0], anchor[1]],
+            ],
+            oneway: false,
+          });
+        }
+      }
+    }
+
+    SPACE_LIST.push({
+      id,
+      nombre,
+      tipo: props.tipo,
+      edificio,
+      notas: textOrNull(props.notas),
+      etiqueta: textOrNull(props.etiqueta),
+      coordinate: { longitude: anchor[0], latitude: anchor[1] },
+      nodeId,
+    });
+  }
+}
+
+function toCampusSpace(space: SpaceNode): CampusSpace {
+  return {
+    id: space.id,
+    nombre: space.nombre,
+    tipo: space.tipo,
+    edificio: space.edificio,
+    notas: space.notas,
+    etiqueta: space.etiqueta,
+    coordinate: space.coordinate,
+    reachable: space.nodeId != null,
+  };
+}
+
 function buildCampusGraph() {
   const nodesFc = nodosJson as unknown as GeoJsonFeatureCollection;
   const edgesFc = aristasJson as unknown as GeoJsonFeatureCollection;
@@ -324,6 +484,7 @@ function buildCampusGraph() {
 
   splicePassages(nodes, raw);
   spliceEntrances(nodes, raw);
+  spliceSpaces(nodes, raw);
 
   const adj = new Map<number, GraphEdge[]>();
   const ensure = (id: number) => {
@@ -510,4 +671,63 @@ export function routeBetweenPoints(
 export function formatDistance(meters: number): string {
   if (meters < 1000) return `${Math.round(meters)} m`;
   return `${(meters / 1000).toFixed(2)} km`;
+}
+
+export function listSpaces(tipo?: SpaceKind): CampusSpace[] {
+  return SPACE_LIST.filter((space) => tipo == null || space.tipo === tipo).map(toCampusSpace);
+}
+
+/** Nodo enganchado al camino. `null` si el espacio no tiene ruta. */
+export function spacePoint(id: string): LatLng | null {
+  const space = SPACE_LIST.find((item) => item.id === id);
+  if (!space?.nodeId) return null;
+  return nodeLatLng(space.nodeId);
+}
+
+function walkDistances(originId: number): Map<number, number> {
+  const dist = new Map<number, number>();
+  const visited = new Set<number>();
+  for (const id of GRAPH.nodes.keys()) dist.set(id, Infinity);
+  dist.set(originId, 0);
+
+  while (visited.size < GRAPH.nodes.size) {
+    let current: number | null = null;
+    let best = Infinity;
+    for (const [id, distance] of dist) {
+      if (!visited.has(id) && distance < best) {
+        best = distance;
+        current = id;
+      }
+    }
+    if (current == null || best === Infinity) break;
+    visited.add(current);
+    for (const edge of GRAPH.adj.get(current) ?? []) {
+      if (visited.has(edge.to)) continue;
+      const next = best + edge.weight;
+      if (next < (dist.get(edge.to) ?? Infinity)) dist.set(edge.to, next);
+    }
+  }
+  return dist;
+}
+
+/** Espacio de ese tipo con menor caminata desde el origen. */
+export function nearestSpace(
+  origin: LatLng,
+  tipo: SpaceKind,
+): (CampusSpace & { distanceM: number }) | null {
+  const originId = nearestNodeId(origin);
+  if (originId == null) return null;
+  const distances = walkDistances(originId);
+  let best: SpaceNode | null = null;
+  let bestDistance = Infinity;
+  for (const space of SPACE_LIST) {
+    if (space.tipo !== tipo || space.nodeId == null) continue;
+    const distance = distances.get(space.nodeId) ?? Infinity;
+    if (distance < bestDistance) {
+      best = space;
+      bestDistance = distance;
+    }
+  }
+  if (!best || bestDistance === Infinity) return null;
+  return { ...toCampusSpace(best), distanceM: bestDistance };
 }

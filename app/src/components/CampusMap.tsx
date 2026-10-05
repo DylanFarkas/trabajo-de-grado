@@ -9,6 +9,7 @@ import edificios from "@/assets/geojson/edificios.json";
 import aristasRed from "@/assets/geojson/aristas_red.json";
 import pasillos from "@/assets/geojson/pasillos.json";
 import postes from "@/assets/geojson/postes.json";
+import espacios from "@/assets/geojson/espacios.json";
 import { BUILDING_HEIGHT_OVERRIDES, CAMPUS_BOUNDS, MOCK_CAMPUS_LOCATION } from "@/constants/map";
 import {
   LAMP_KINDS,
@@ -22,11 +23,20 @@ import {
   CAMPUS_ENTRANCES,
   type CampusEntrance,
 } from "@/constants/entrances";
-import { catalogMapTone, categoriesForCode, listCampusPlaces, placeInfo, searchCampusPlaces, type CampusCatalog, type CampusPlace, type PresetRoute } from "@/places";
+import { catalogMapTone, categoriesForCode, placeInfo, type CampusCatalog, type PresetRoute } from "@/places";
+import {
+  destinationFromBuilding,
+  findDestination,
+  findDestinationByPlaceId,
+  listDestinations,
+  searchDestinations,
+  spaceKindLabel,
+  type CampusDestination,
+} from "@/destinations";
+import { nearestSpace } from "@/spaces";
 import { readCachedCatalog, refreshCatalog } from "@/catalog";
 import {
   buildPlaceCatalog,
-  findPlaceById,
   parseRouteIntent,
   RouteIntentError,
 } from "@/routing/deepseekIntent";
@@ -35,6 +45,7 @@ import {
   formatDistance,
   nearestNodeId,
   nodeLatLng,
+  spacePoint,
   type LatLng,
 } from "@/routing/graph";
 import {
@@ -60,9 +71,9 @@ import { useMapPanel, type MapPanel } from "@/map-panel";
 
 const UniWebView = withUniwind(WebView);
 
-type SelectedBuilding = {
+type SelectedPlace = {
   snapped: LatLng;
-  building: BuildingProperties;
+  destination: CampusDestination;
 };
 
 function snapCampusPoint(point: LatLng): LatLng {
@@ -82,6 +93,14 @@ function pointForBuilding(
     code != null && code !== "" ? entrancePoint(String(code), toward) : null;
   if (entrance && pointInCampus(entrance)) return entrance;
   return snapCampusPoint(fallback);
+}
+
+/** Puerta del edificio, o el nodo enganchado del espacio. */
+function pointForDestination(destination: CampusDestination, toward?: LatLng | null): LatLng {
+  if (destination.kind === "space") {
+    return (destination.spaceId ? spacePoint(destination.spaceId) : null) ?? destination.point;
+  }
+  return pointForBuilding(destination.building, destination.point, toward);
 }
 
 function withExtrusionHeight(
@@ -315,6 +334,7 @@ function buildMapHtml(initialTheme: MapTheme): string {
     var userMarker = null;
     var entranceMarkers = [];
     var selectedBuildingId = null;
+    var selectedSpaceId = null;
 
     function makeMarkerEl(kind, letter) {
       var el = document.createElement('div');
@@ -365,6 +385,20 @@ function buildMapHtml(initialTheme: MapTheme): string {
       if (selectedBuildingId != null && map.getSource('buildings')) {
         try {
           map.setFeatureState({ source: 'buildings', id: selectedBuildingId }, { selected: true });
+        } catch (e) {}
+      }
+    };
+
+    window.setSelectedSpace = function (id) {
+      if (selectedSpaceId != null && map.getSource('espacios')) {
+        try {
+          map.setFeatureState({ source: 'espacios', id: selectedSpaceId }, { selected: false });
+        } catch (e) {}
+      }
+      selectedSpaceId = id == null || id === '' ? null : id;
+      if (selectedSpaceId != null && map.getSource('espacios')) {
+        try {
+          map.setFeatureState({ source: 'espacios', id: selectedSpaceId }, { selected: true });
         } catch (e) {}
       }
     };
@@ -475,6 +509,7 @@ function buildMapHtml(initialTheme: MapTheme): string {
       if (destMarker) { destMarker.remove(); destMarker = null; }
       clearStopMarkers();
       if (typeof window.setSelectedBuilding === 'function') window.setSelectedBuilding(null);
+      if (typeof window.setSelectedSpace === 'function') window.setSelectedSpace(null);
       window.clearRouteLine();
     };
 
@@ -680,13 +715,13 @@ function buildMapHtml(initialTheme: MapTheme): string {
     }
 
     var CAMPUS_LAYERS = [
-      'buildings-labels', 'lamp-bulb', 'lamp-3d', 'buildings-selected', 'buildings-3d',
+      'buildings-labels', 'espacios-label', 'lamp-bulb', 'lamp-3d', 'buildings-selected', 'buildings-3d',
       'buildings-footprint', 'buildings-hit', 'campus-building-3d',
       'lamp-core', 'lamp-glow', 'lamp-pool',
       'steps-line', 'foot-line', 'foot-casing', 'service-line', 'service-casing',
-      'pasillos-line', 'pasillos-casing'
+      'pasillos-line', 'pasillos-casing', 'espacios-line', 'espacios-fill'
     ];
-    var CAMPUS_SOURCES = ['lamp-models', 'lamps', 'buildings', 'paths', 'pasillos'];
+    var CAMPUS_SOURCES = ['lamp-models', 'lamps', 'buildings', 'paths', 'pasillos', 'espacios'];
 
     /** Ajustes sobre el estilo base. Los ids cambian entre liberty y dark, por eso cada uno se protege. */
     function applyBaseTheme() {
@@ -718,6 +753,59 @@ function buildMapHtml(initialTheme: MapTheme): string {
       });
 
       const beforeId = firstSymbolLayerId();
+      var spaces = campus.spaces;
+      if (spaces && spaces.features && spaces.features.length) {
+        map.addSource('espacios', { type: 'geojson', data: spaces, promoteId: 'id' });
+        map.addLayer({
+          id: 'espacios-fill', type: 'fill', source: 'espacios',
+          filter: ['==', ['geometry-type'], 'Polygon'],
+          paint: {
+            'fill-color': [
+              'case',
+              ['boolean', ['feature-state', 'selected'], false],
+              colors.selected,
+              colors.spaceFill
+            ],
+            'fill-opacity': colors.spaceFillOpacity
+          }
+        }, beforeId);
+        map.addLayer({
+          id: 'espacios-line', type: 'line', source: 'espacios',
+          filter: ['==', ['geometry-type'], 'Polygon'],
+          layout: { 'line-join': 'round' },
+          paint: {
+            'line-color': [
+              'case',
+              ['boolean', ['feature-state', 'selected'], false],
+              colors.selected,
+              colors.spaceLine
+            ],
+            'line-width': [
+              'case',
+              ['boolean', ['feature-state', 'selected'], false],
+              ['interpolate', ['linear'], ['zoom'], 15, 2.4, 17, 3.4, 19, 4.2],
+              ['interpolate', ['linear'], ['zoom'], 15, 1.2, 17, 1.8, 19, 2.4]
+            ]
+          }
+        }, beforeId);
+        map.addLayer({
+          id: 'espacios-label', type: 'symbol', source: 'espacios',
+          minzoom: 16,
+          layout: {
+            'text-field': ['coalesce', ['get', 'etiqueta'], ['get', 'nombre'], ''],
+            'text-font': ['Noto Sans Bold'],
+            'text-size': ['interpolate', ['linear'], ['zoom'], 16, 11, 18, 14],
+            'text-anchor': 'center',
+            'text-allow-overlap': true
+          },
+          paint: {
+            'text-color': colors.label,
+            'text-halo-color': colors.labelHalo,
+            'text-halo-width': 1.5
+          }
+        }, beforeId);
+      }
+
       const serviceFilter = ['==', ['get', 'highway'], 'service'];
       const footFilter = ['match', ['get', 'highway'], ['footway', 'path', 'pedestrian', 'bridleway'], true, false];
       const stepsFilter = ['==', ['get', 'highway'], 'steps'];
@@ -991,6 +1079,11 @@ function buildMapHtml(initialTheme: MapTheme): string {
           map.setFeatureState({ source: 'buildings', id: selectedBuildingId }, { selected: true });
         } catch (e) {}
       }
+      if (selectedSpaceId != null) {
+        try {
+          map.setFeatureState({ source: 'espacios', id: selectedSpaceId }, { selected: true });
+        } catch (e) {}
+      }
 
       drawRouteLine();
     }
@@ -1042,12 +1135,13 @@ function buildMapHtml(initialTheme: MapTheme): string {
       }, 180);
     };
 
-    window.loadCampusLayers = function (buildings, paths, passages, lamps) {
+    window.loadCampusLayers = function (buildings, paths, passages, lamps, spaces) {
       campus = {
         buildings: buildings,
         paths: paths,
         passages: passages,
-        lamps: lamps || { type: 'FeatureCollection', features: [] }
+        lamps: lamps || { type: 'FeatureCollection', features: [] },
+        spaces: spaces || { type: 'FeatureCollection', features: [] }
       };
       window.__campus = campus;
       lampData = buildLampData(campus.lamps);
@@ -1073,11 +1167,16 @@ function buildMapHtml(initialTheme: MapTheme): string {
       var building = hitLayers.length
         ? map.queryRenderedFeatures(bbox, { layers: hitLayers })[0]
         : null;
+      var space = null;
+      if (!building && map.getLayer('espacios-fill')) {
+        space = map.queryRenderedFeatures(bbox, { layers: ['espacios-fill'] })[0] || null;
+      }
       post({
         type: 'map-click',
         longitude: e.lngLat.lng,
         latitude: e.lngLat.lat,
-        building: building ? (building.properties || null) : null
+        building: building ? (building.properties || null) : null,
+        spaceId: space && space.properties ? (space.properties.id || null) : null
       });
     });
 
@@ -1111,7 +1210,7 @@ export function CampusMap() {
   const [mockLocationActive, setMockLocationActive] = useState(false);
   const [activeSlot, setActiveSlot] = useState<RouteSlot>("origin");
   const [view3d, setView3d] = useState(true);
-  const [selected, setSelected] = useState<SelectedBuilding | null>(null);
+  const [selected, setSelected] = useState<SelectedPlace | null>(null);
   const [catalog, setCatalog] = useState<CampusCatalog | null>(null);
   const [preset, setPreset] = useState<{ name: string; stops: { letter: string; name: string }[] } | null>(null);
   const [locating, setLocating] = useState(false);
@@ -1133,7 +1232,7 @@ export function CampusMap() {
   const searchSlotRef = useRef<RouteSlot | null>("destination");
   const inTripRef = useRef(false);
   const pendingPresetRef = useRef<PresetRoute | null>(null);
-  const selectedRef = useRef<SelectedBuilding | null>(null);
+  const selectedRef = useRef<SelectedPlace | null>(null);
   const routeRequestRef = useRef(0);
   const relocatingRef = useRef<string | null>(null);
   const streetProfileRef = useRef<StreetProfile>(streetProfile);
@@ -1212,36 +1311,37 @@ export function CampusMap() {
   const paths = useMemo(() => aristasRed, []);
   const passages = useMemo(() => pasillos, []);
   const lamps = useMemo(() => postes, []);
-  const places = useMemo(
-    () => listCampusPlaces(edificios as unknown as GeoJsonFeatureCollection, catalog),
+  const spaces = useMemo(() => espacios, []);
+  const destinations = useMemo(
+    () => listDestinations(edificios as unknown as GeoJsonFeatureCollection, catalog),
     [catalog],
   );
-  const placeCatalog = useMemo(() => buildPlaceCatalog(places), [places]);
-  const results = useMemo(() => searchCampusPlaces(places, query, 4), [places, query]);
-  const selectedInfo = useMemo(
-    () => (selected ? placeInfo(selected.building, catalog) : null),
-    [selected, catalog],
-  );
+  const placeCatalog = useMemo(() => buildPlaceCatalog(destinations), [destinations]);
+  const results = useMemo(() => searchDestinations(destinations, query, 8), [destinations, query]);
 
   const inject = useCallback((code: string) => {
     webRef.current?.injectJavaScript(`(function(){${code}; true;})();`);
   }, []);
 
   useEffect(() => {
-    const fid = selected?.building?.fid;
-    const value = fid == null || Number.isNaN(Number(fid)) ? "null" : String(Number(fid));
+    const destination = selected?.destination;
+    const fid = destination?.kind === "building" ? destination.building?.fid : null;
+    const buildingValue = fid == null || Number.isNaN(Number(fid)) ? "null" : String(Number(fid));
+    const spaceValue =
+      destination?.kind === "space" && destination.spaceId ? JSON.stringify(destination.spaceId) : "null";
     inject(
-      `if (typeof window.setSelectedBuilding === 'function') window.setSelectedBuilding(${value});`,
+      `if (typeof window.setSelectedBuilding === 'function') window.setSelectedBuilding(${buildingValue});
+       if (typeof window.setSelectedSpace === 'function') window.setSelectedSpace(${spaceValue});`,
     );
   }, [selected, inject]);
 
   const injectLayers = useCallback(() => {
-    const payload = JSON.stringify({ buildings, paths, passages, lamps });
+    const payload = JSON.stringify({ buildings, paths, passages, lamps, spaces });
     inject(`
       try {
         var data = ${payload};
         if (typeof window.loadCampusLayers === 'function') {
-          window.loadCampusLayers(data.buildings, data.paths, data.passages, data.lamps);
+          window.loadCampusLayers(data.buildings, data.paths, data.passages, data.lamps, data.spaces);
         }
       } catch (e) {
         if (window.ReactNativeWebView) {
@@ -1249,7 +1349,7 @@ export function CampusMap() {
         }
       }
     `);
-  }, [buildings, paths, passages, lamps, inject]);
+  }, [buildings, paths, passages, lamps, spaces, inject]);
 
   useEffect(() => {
     if (!mapLoaded || !mapTheme) return;
@@ -1389,19 +1489,26 @@ export function CampusMap() {
       }
 
       const resolved = presetRoute.stops.flatMap((code) => {
-        const place = places.find((item) => item.code === code);
-        if (!place) return [];
-        return [{ name: place.title, point: place.point }];
+        const place = findDestinationByPlaceId(destinations, code);
+        if (!place?.reachable) return [];
+        return [{ name: place.title, point: pointForDestination(place) }];
       });
       const missing = presetRoute.stops.find(
-        (code) => !places.some((item) => item.code === code),
+        (code) => !findDestinationByPlaceId(destinations, code)?.reachable,
       );
       if (missing || resolved.length < 2) {
         const label = missing ? (catalog?.places[missing]?.name ?? missing) : null;
+        const disconnected = missing
+          ? findDestinationByPlaceId(destinations, missing)
+          : null;
         setPreset(null);
         setRoute(null);
         setRouteError(
-          label ? `${label} no está en el mapa` : "La ruta necesita al menos dos sitios",
+          disconnected && !disconnected.reachable
+            ? "Este espacio todavía no está conectado a los caminos"
+            : label
+              ? `${label} no está en el mapa`
+              : "La ruta necesita al menos dos sitios",
         );
         clearRouteLine();
         return;
@@ -1464,7 +1571,7 @@ export function CampusMap() {
         if (typeof window.setRouteLine === 'function') window.setRouteLine(data.coordinates);
       `);
     },
-    [origin, originName, places, catalog, clearRouteLine, inject],
+    [origin, originName, destinations, catalog, clearRouteLine, inject],
   );
 
   const syncEntranceMarkers = useCallback(
@@ -1513,18 +1620,31 @@ export function CampusMap() {
     inject(`if (typeof window.setEntranceMarkers === 'function') window.setEntranceMarkers([]);`);
   }, [inject]);
 
+  const reportUnreachableSpace = useCallback(() => {
+    const message = "Este espacio todavía no está conectado a los caminos";
+    setRouteError(message);
+    setStatus(message);
+    setTimeout(() => {
+      setStatus((prev) => (prev === message ? "" : prev));
+    }, 2800);
+  }, []);
+
   const assignPoint = useCallback(
     (
       slot: RouteSlot,
       point: LatLng,
-      building: BuildingProperties | null,
+      target: CampusDestination | null,
       label?: string | null,
     ) => {
+      if (target?.kind === "space" && !target.reachable) {
+        reportUnreachableSpace();
+        return;
+      }
       const toward = slot === "destination" ? origin : destination;
-      const snapped = pointForBuilding(building, point, toward);
+      const snapped = target ? pointForDestination(target, toward) : pointForBuilding(null, point, toward);
       setSelected(null);
       setPickingSlot(null);
-      const name = label ?? placeInfo(building, catalog).title;
+      const name = label ?? target?.title ?? placeInfo(null, catalog).title;
       const pending = pendingPresetRef.current;
       if (slot === "origin" && pending) {
         runPreset(pending, snapped, name);
@@ -1554,7 +1674,7 @@ export function CampusMap() {
       syncMarkers(nextOrigin, nextDestination);
       clearRouteLine();
     },
-    [origin, destination, originName, destinationName, runRoute, runPreset, syncMarkers, clearRouteLine, catalog],
+    [origin, destination, originName, destinationName, runRoute, runPreset, syncMarkers, clearRouteLine, catalog, reportUnreachableSpace],
   );
 
   const clearSlot = useCallback(
@@ -1597,10 +1717,10 @@ export function CampusMap() {
     clearRouteLine();
   }, [origin, destination, originName, destinationName, runRoute, syncMarkers, clearRouteLine]);
 
-  const showBuilding = useCallback(
-    (point: LatLng, building: BuildingProperties) => {
-      const snapped = pointForBuilding(building, point, origin ?? destination);
-      setSelected({ snapped, building });
+  const showPlace = useCallback(
+    (target: CampusDestination) => {
+      const snapped = pointForDestination(target, origin ?? destination);
+      setSelected({ snapped, destination: target });
       focusPlace(snapped);
     },
     [focusPlace, origin, destination],
@@ -1610,33 +1730,39 @@ export function CampusMap() {
     (slot: RouteSlot) => {
       const current = selectedRef.current;
       if (!current) return;
-      assignPoint(slot, current.snapped, current.building);
+      assignPoint(slot, current.snapped, current.destination);
     },
     [assignPoint],
   );
 
   const openSelectedDetails = useCallback(() => {
-    const info = selectedInfo;
-    if (!info?.code) return;
+    const info = selectedRef.current?.destination;
+    if (!info?.placeId) return;
     openPlaceDetails({
-      code: info.code,
+      code: info.placeId,
       title: info.title,
       subtitle: info.subtitle,
       categories: info.categories,
-      description: catalog?.places[info.code]?.description ?? null,
-      tone: categoriesForCode(info.code, catalog)[0]?.tone ?? null,
+      description: catalog?.places[info.placeId]?.description ?? null,
+      tone: categoriesForCode(info.placeId, catalog)[0]?.tone ?? null,
     });
-  }, [selectedInfo, catalog, openPlaceDetails]);
+  }, [catalog, openPlaceDetails]);
 
   const chooseSearchResult = useCallback(
-    (place: CampusPlace) => {
+    (place: CampusDestination) => {
       Keyboard.dismiss();
       const slot = searchSlotRef.current ?? "destination";
+      if (place.kind === "space" && !place.reachable) {
+        showPlace(place);
+        setQuery("");
+        reportUnreachableSpace();
+        return;
+      }
       const toward = slot === "destination" ? origin : destination;
-      assignPoint(slot, place.point, place.building);
-      focusPlace(pointForBuilding(place.building, place.point, toward));
+      assignPoint(slot, place.point, place);
+      focusPlace(pointForDestination(place, toward));
     },
-    [assignPoint, focusPlace, origin, destination],
+    [assignPoint, focusPlace, origin, destination, showPlace, reportUnreachableSpace],
   );
 
   const pickSlot = useCallback((slot: RouteSlot) => {
@@ -1821,7 +1947,7 @@ export function CampusMap() {
     if (assistantLoading || routing) return;
     const text = assistantPrompt.trim();
     if (!text) {
-      setAssistantError("Escribe a dónde quieres ir, ej: desde E19 al B13");
+      setAssistantError("Escribe a dónde quieres ir, ej: desde E19 al P9");
       return;
     }
 
@@ -1836,27 +1962,31 @@ export function CampusMap() {
       const intent = await parseRouteIntent(text, placeCatalog);
       if (requestId !== assistantRequestRef.current) return;
 
-      if (intent.clarification && !intent.destinationPlaceId) {
+      if (intent.clarification && !intent.destinationPlaceId && !intent.destinationSpaceKind) {
         setAssistantError(intent.clarification);
         setStatus("");
         return;
       }
 
-      const destinationPlace = findPlaceById(places, intent.destinationPlaceId);
-      if (!destinationPlace) {
+      const namedDestination = findDestination(destinations, intent.destinationPlaceId);
+      if (!namedDestination && !intent.destinationSpaceKind) {
         setAssistantError(
           intent.clarification ??
-            "No reconocí el destino. Prueba con un código o nombre del campus (ej: B13).",
+            "No reconocí el destino. Prueba con un código, un nombre o un espacio (ej: B13 o P9).",
         );
         setStatus("");
         return;
       }
 
-      const originPlace = findPlaceById(places, intent.originPlaceId);
-      let nextOrigin: LatLng | null = originPlace?.point ?? null;
-      let nextOriginName: string | null = originPlace
-        ? placeInfo(originPlace.building, catalog).title
-        : null;
+      const originPlace = findDestination(destinations, intent.originPlaceId);
+      if (originPlace?.kind === "space" && !originPlace.reachable) {
+        setAssistantError("Este espacio todavía no está conectado a los caminos");
+        setStatus("");
+        return;
+      }
+
+      let nextOrigin: LatLng | null = originPlace ? pointForDestination(originPlace) : null;
+      let nextOriginName: string | null = originPlace?.title ?? null;
 
       if (!nextOrigin) {
         const currentUser = userLocationRef.current;
@@ -1870,8 +2000,36 @@ export function CampusMap() {
 
       if (!nextOrigin) {
         setAssistantError(
-          "Indica el origen (ej: desde E19 al B13) o activa «Ubicación de prueba» abajo.",
+          "Indica el origen (ej: desde E19 al P9) o activa «Ubicación de prueba» abajo.",
         );
+        setStatus("");
+        return;
+      }
+
+      let destinationPlace = namedDestination;
+      if (!destinationPlace && intent.destinationSpaceKind) {
+        const nearest = nearestSpace(nextOrigin, intent.destinationSpaceKind, catalog);
+        destinationPlace = nearest ? findDestination(destinations, nearest.id) : null;
+        if (!destinationPlace) {
+          setAssistantError(
+            `No hay un ${spaceKindLabel(intent.destinationSpaceKind).toLowerCase()} conectado a los caminos desde aquí`,
+          );
+          setStatus("");
+          return;
+        }
+      }
+
+      if (!destinationPlace) {
+        setAssistantError(
+          intent.clarification ??
+            "No reconocí el destino. Prueba con un código, un nombre o un espacio (ej: B13 o P9).",
+        );
+        setStatus("");
+        return;
+      }
+
+      if (destinationPlace.kind === "space" && !destinationPlace.reachable) {
+        setAssistantError("Este espacio todavía no está conectado a los caminos");
         setStatus("");
         return;
       }
@@ -1889,12 +2047,12 @@ export function CampusMap() {
         streetProfileRef.current = intent.profile;
       }
 
-      const to = pointForBuilding(destinationPlace.building, destinationPlace.point, nextOrigin);
+      const to = pointForDestination(destinationPlace, nextOrigin);
       const from = originPlace
-        ? pointForBuilding(originPlace.building, nextOrigin, to)
+        ? pointForDestination(originPlace, to)
         : snapCampusPoint(nextOrigin);
       const fromName = nextOriginName ?? "Origen";
-      const toName = placeInfo(destinationPlace.building, catalog).title;
+      const toName = destinationPlace.title;
 
       setSelected(null);
       setOrigin(from);
@@ -1925,7 +2083,7 @@ export function CampusMap() {
         setAssistantLoading(false);
       }
     }
-  }, [assistantLoading, routing, assistantPrompt, placeCatalog, places, runRoute, catalog]);
+  }, [assistantLoading, routing, assistantPrompt, placeCatalog, destinations, runRoute, catalog]);
 
   const openCampusPicker = useCallback(() => {
     setCampusPickerOpen(true);
@@ -1980,6 +2138,7 @@ export function CampusMap() {
           longitude?: number;
           latitude?: number;
           building?: BuildingProperties | null;
+          spaceId?: string | null;
         };
         if (data.type === "map-ready") {
           setStatus("Preparando campus…");
@@ -2014,11 +2173,16 @@ export function CampusMap() {
               return;
             }
             const slot = inTripRef.current && tabRef.current === "map" ? searchSlotRef.current : null;
+            const target = data.building
+              ? destinationFromBuilding(data.building, destinations, point, catalog)
+              : data.spaceId
+                ? (destinations.find((item) => item.spaceId === data.spaceId) ?? null)
+                : null;
             if (slot) {
-              assignPoint(slot, point, data.building ?? null);
-            } else if (data.building) {
+              assignPoint(slot, point, target);
+            } else if (target) {
               setCampusPickerOpen(false);
-              showBuilding(point, data.building);
+              showPlace(target);
               setTab("map");
             } else {
               setSelected(null);
@@ -2031,7 +2195,7 @@ export function CampusMap() {
         // ignore
       }
     },
-    [injectLayers, assignPoint, showBuilding, inject],
+    [injectLayers, assignPoint, showPlace, inject, destinations, catalog],
   );
 
   const startTour = useCallback(
@@ -2059,8 +2223,8 @@ export function CampusMap() {
 
   const stopName = useCallback(
     (code: string) =>
-      catalog?.places[code]?.name ?? places.find((place) => place.code === code)?.title ?? code,
-    [catalog, places],
+      catalog?.places[code]?.name ?? findDestinationByPlaceId(destinations, code)?.title ?? code,
+    [catalog, destinations],
   );
 
   const inTrip = Boolean(origin || destination || preset || pendingPreset || campusPickerOpen);
@@ -2110,16 +2274,15 @@ export function CampusMap() {
         ? "Cambiar destino"
         : "¿A dónde vas?";
 
-  const placePreview =
-    selectedInfo && selected
-      ? {
-          title: selectedInfo.title,
-          subtitle: selectedInfo.subtitle,
-          code: selectedInfo.code,
-          categories: selectedInfo.categories,
-          detail: selectedInfo.detail,
-        }
-      : null;
+  const placePreview = selected
+    ? {
+        title: selected.destination.title,
+        subtitle: selected.destination.subtitle,
+        code: selected.destination.placeId,
+        categories: selected.destination.categories,
+        detail: selected.destination.detail,
+      }
+    : null;
   const lastPlacePreview = useRef(placePreview);
   if (placePreview) lastPlacePreview.current = placePreview;
 

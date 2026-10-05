@@ -32,14 +32,13 @@ export async function signOut() {
   redirect("/");
 }
 
-export async function updatePlace(formData: FormData) {
+async function writePlaceFicha(formData: FormData, kind: "building" | "space") {
   const supabase = await adminClient();
   const id = String(formData.get("id") ?? "");
   const name = String(formData.get("name") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
-  const kind = String(formData.get("kind") ?? "");
-  if (!id || !name || !isKind(kind)) {
-    throw new Error("La ficha necesita código, nombre y tipo.");
+  if (!id || !name) {
+    throw new Error("La ficha necesita código y nombre.");
   }
 
   const { error } = await supabase
@@ -81,7 +80,23 @@ export async function updatePlace(formData: FormData) {
 
   revalidatePath("/places");
   revalidatePath(`/places/${id}`);
+  revalidatePath("/espacios");
+  revalidatePath(`/espacios/${id}`);
+  return id;
+}
+
+export async function updatePlace(formData: FormData) {
+  const kind = String(formData.get("kind") ?? "");
+  if (!isKind(kind)) {
+    throw new Error("La ficha necesita un tipo.");
+  }
+  await writePlaceFicha(formData, kind);
   redirect("/places");
+}
+
+export async function updateSpace(formData: FormData) {
+  await writePlaceFicha(formData, "space");
+  redirect("/espacios");
 }
 
 export async function createCategory(formData: FormData) {

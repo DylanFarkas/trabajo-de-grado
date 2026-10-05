@@ -43,6 +43,35 @@ export type LampPostKind = "vial" | "peatonal";
 /** Un poste `dañado` se dibuja apagado y no ilumina. */
 export type LampPostStatus = "funciona" | "dañado" | "sin_verificar";
 
+/** Tipo fijo del espacio. La ruta “más cercana” filtra por esto, no por una categoría del admin. */
+export type SpaceKind = "bano" | "parqueadero" | "cancha";
+
+/**
+ * Propiedades de cada feature de `espacios.json`.
+ * El punto de ruta es `centro`. Si falta, se usa el Point o el centroide del polígono.
+ * El polígono, cuando existe, es el área que se pinta en el mapa.
+ */
+export type SpaceProperties = {
+  id: string;
+  nombre: string;
+  tipo: SpaceKind;
+  edificio?: string | null;
+  notas?: string | null;
+  /** [longitud, latitud] */
+  centro?: [number, number] | null;
+  /** Texto corto sobre el área. Si falta, el mapa usa `nombre`. */
+  etiqueta?: string | null;
+};
+
+export type SpaceFeatureCollection = {
+  type: "FeatureCollection";
+  features: {
+    type: "Feature";
+    geometry: GeoJsonGeometry | null;
+    properties: SpaceProperties;
+  }[];
+};
+
 /** Propiedades de cada punto de `postes.json`. El punto es la base del poste. */
 export type LampPostProperties = {
   id: string;

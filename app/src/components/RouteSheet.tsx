@@ -408,14 +408,14 @@ export function RouteSheet({
                 <Text className="ml-2 text-[15px] font-bold text-white dark:text-[#0b0f16]">Usar mi ubicación</Text>
               </Pressable>
               <Text className="mt-2 text-center font-sans text-xs text-[#8e8e93] dark:text-[#8b95a5]">
-                O búscalo arriba, o toca un edificio en el mapa
+                O búscalo arriba, o toca un lugar en el mapa
               </Text>
             </View>
           ) : null}
 
           {searchSlot === "destination" ? (
             <Text className="mt-3 text-center font-sans text-xs text-[#8e8e93] dark:text-[#8b95a5]">
-              Búscalo arriba o toca un edificio en el mapa
+              Búscalo arriba o toca un lugar en el mapa
             </Text>
           ) : null}
 

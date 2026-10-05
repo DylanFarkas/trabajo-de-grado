@@ -14,7 +14,8 @@ import { SnapSheet } from "@/components/SnapSheet";
 const EXAMPLES = [
   "Quiero ir al B13",
   "Desde E19 al B13",
-  "Llévame a la biblioteca",
+  "Llévame al parqueadero P9",
+  "El parqueadero más cercano",
 ] as const;
 
 type AssistantSheetProps = {

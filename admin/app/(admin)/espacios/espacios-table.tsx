@@ -3,15 +3,13 @@
 import { type ColumnDef } from "@tanstack/react-table";
 
 import { DataTable } from "@/components/catalog/data-table";
-import { kindLabel } from "@/lib/catalog";
 
-export type PlaceRow = {
+export type SpaceRow = {
   id: string;
   name: string;
-  kind: string;
 };
 
-const columns: ColumnDef<PlaceRow, unknown>[] = [
+const columns: ColumnDef<SpaceRow, unknown>[] = [
   {
     accessorKey: "id",
     header: "Código",
@@ -22,20 +20,14 @@ const columns: ColumnDef<PlaceRow, unknown>[] = [
     header: "Nombre",
     cell: ({ getValue }) => <span className="font-medium text-zinc-900 dark:text-zinc-50">{String(getValue())}</span>,
   },
-  {
-    accessorKey: "kind",
-    header: "Tipo",
-    filterFn: "equals",
-    cell: ({ getValue }) => kindLabel(String(getValue())),
-  },
 ];
 
-export function PlacesTable({ places }: { places: PlaceRow[] }) {
+export function EspaciosTable({ spaces }: { spaces: SpaceRow[] }) {
   return (
     <DataTable
       columns={columns}
-      data={places}
-      getRowHref={(place) => `/places/${place.id}`}
+      data={spaces}
+      getRowHref={(space) => `/espacios/${space.id}`}
       searchPlaceholder="Código o nombre"
     />
   );

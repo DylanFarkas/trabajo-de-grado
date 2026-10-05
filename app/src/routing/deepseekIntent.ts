@@ -1,4 +1,5 @@
-import type { CampusPlace } from "@/places";
+import type { CampusDestination } from "@/destinations";
+import type { SpaceKind } from "@/types/campus";
 import type { StreetProfile } from "./openRouteService";
 
 const DEEPSEEK_URL = "https://api.deepseek.com/chat/completions";
@@ -8,11 +9,15 @@ export type PlaceCatalogEntry = {
   id: string;
   code: string | null;
   title: string;
+  kind: "building" | "space";
+  spaceKind: SpaceKind | null;
 };
 
 export type RouteIntent = {
   originPlaceId: string | null;
   destinationPlaceId: string | null;
+  /** Tipo de espacio cuando piden el más cercano y no un sitio concreto. */
+  destinationSpaceKind: SpaceKind | null;
   profile: StreetProfile | null;
   confidence: number;
   clarification: string | null;
@@ -25,11 +30,13 @@ export class RouteIntentError extends Error {
   }
 }
 
-export function buildPlaceCatalog(places: CampusPlace[]): PlaceCatalogEntry[] {
-  return places.map((place) => ({
-    id: place.id,
-    code: place.code,
-    title: place.title,
+export function buildPlaceCatalog(destinations: CampusDestination[]): PlaceCatalogEntry[] {
+  return destinations.map((item) => ({
+    id: item.catalogId ?? item.key,
+    code: item.badge,
+    title: item.title,
+    kind: item.kind,
+    spaceKind: item.spaceKind,
   }));
 }
 
@@ -50,7 +57,11 @@ function getModel(): string {
 function buildSystemPrompt(catalog: PlaceCatalogEntry[]): string {
   const lines = catalog.map((place) => {
     const code = place.code ? ` code=${place.code}` : "";
-    return `- id=${place.id}${code} title="${place.title}"`;
+    const kind =
+      place.kind === "space" && place.spaceKind
+        ? ` kind=space tipo=${place.spaceKind}`
+        : " kind=building";
+    return `- id=${place.id}${kind}${code} title="${place.title}"`;
   });
 
   return [
@@ -58,11 +69,14 @@ function buildSystemPrompt(catalog: PlaceCatalogEntry[]): string {
     "Tu única tarea es convertir el pedido del usuario en JSON con IDs del catálogo.",
     "No inventes IDs. Solo usa ids de la lista.",
     "Resuelve alias comunes: biblioteca→Biblioteca Central, códigos como B13/E19, nombres de edificios.",
+    "El catálogo también incluye espacios (parqueaderos, baños y canchas). Un espacio concreto se resuelve por su id, etiqueta o nombre: P9, Parqueadero 9.",
+    "Si piden el más cercano de un tipo sin nombrar uno (el parqueadero, un baño, la cancha más cercana), destinationPlaceId=null y destinationSpaceKind es bano, parqueadero o cancha. No elijas un edificio aunque su nombre contenga esa palabra.",
+    "Si el destino es un sitio concreto, destinationSpaceKind=null.",
     "Si el usuario solo menciona destino, originPlaceId debe ser null.",
-    "Si no puedes resolver el destino con confianza, destinationPlaceId=null y escribe clarification en español.",
+    "Si no puedes resolver el destino con confianza, destinationPlaceId=null, destinationSpaceKind=null y escribe clarification en español.",
     "profile: foot-walking (pie, caminar) o driving-car (carro, auto); null si no se indica.",
     "Responde SOLO JSON válido con esta forma exacta:",
-    '{"originPlaceId":string|null,"destinationPlaceId":string|null,"profile":"foot-walking"|"driving-car"|null,"confidence":number,"clarification":string|null}',
+    '{"originPlaceId":string|null,"destinationPlaceId":string|null,"destinationSpaceKind":"bano"|"parqueadero"|"cancha"|null,"profile":"foot-walking"|"driving-car"|null,"confidence":number,"clarification":string|null}',
     "",
     "Catálogo de lugares:",
     ...lines,
@@ -103,6 +117,11 @@ function asProfile(value: unknown): StreetProfile | null {
   return null;
 }
 
+function asSpaceKind(value: unknown): SpaceKind | null {
+  if (value === "bano" || value === "parqueadero" || value === "cancha") return value;
+  return null;
+}
+
 function normalizeIntent(data: unknown): RouteIntent {
   if (!data || typeof data !== "object") {
     throw new RouteIntentError("Respuesta del asistente inválida");
@@ -117,18 +136,11 @@ function normalizeIntent(data: unknown): RouteIntent {
   return {
     originPlaceId: asNullableString(obj.originPlaceId),
     destinationPlaceId: asNullableString(obj.destinationPlaceId),
+    destinationSpaceKind: asSpaceKind(obj.destinationSpaceKind),
     profile: asProfile(obj.profile),
     confidence,
     clarification: asNullableString(obj.clarification),
   };
-}
-
-export function findPlaceById(
-  places: CampusPlace[],
-  id: string | null | undefined,
-): CampusPlace | null {
-  if (!id) return null;
-  return places.find((place) => place.id === id) ?? null;
 }
 
 /**
@@ -177,5 +189,38 @@ export async function parseRouteIntent(
     throw new RouteIntentError("El asistente no devolvió una respuesta");
   }
 
-  return normalizeIntent(parseJsonContent(content));
+  return applyNearestSpaceHint(text, normalizeIntent(parseJsonContent(content)));
+}
+
+function normalizeSearchText(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+/** El modelo a veces elige un edificio homónimo. “El más cercano” es un tipo de espacio. */
+function applyNearestSpaceHint(userText: string, intent: RouteIntent): RouteIntent {
+  const text = normalizeSearchText(userText);
+  if (!/mas cercan|mas proxim/.test(text)) return intent;
+  if (/desde\s+(el|la|un|una)?\s*(parqueadero|bano|cancha)\s+mas\s+(cercan|proxim)/.test(text)) {
+    return intent;
+  }
+
+  let spaceKind: SpaceKind | null = null;
+  if (/\bparqueadero\b/.test(text) && !/\bparqueadero\s+\d+\b/.test(text) && !/\bp\d+\b/.test(text)) {
+    spaceKind = "parqueadero";
+  } else if (/\bbano\b/.test(text)) {
+    spaceKind = "bano";
+  } else if (/\bcancha\b/.test(text)) {
+    spaceKind = "cancha";
+  }
+  if (!spaceKind) return intent;
+
+  return {
+    ...intent,
+    destinationPlaceId: null,
+    destinationSpaceKind: spaceKind,
+    clarification: null,
+  };
 }

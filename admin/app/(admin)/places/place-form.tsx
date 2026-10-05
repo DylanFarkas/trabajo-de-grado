@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { updatePlace } from "@/app/actions";
+import { updatePlace, updateSpace } from "@/app/actions";
 import { CategoryPicker } from "@/components/catalog/category-picker";
 import { Button, buttonClass } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
@@ -11,14 +11,18 @@ export function PlaceForm({
   place,
   categories,
   selected,
+  lockKind = false,
 }: {
   place: { id: string; name: string; kind: string; description: string | null };
   categories: { id: string; name: string; tone: string }[];
   selected: Set<string>;
+  /** Un espacio no se convierte en edificio: el punto vive en el GeoJSON. */
+  lockKind?: boolean;
 }) {
   return (
-    <form action={updatePlace} className="mt-8 grid items-start gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
+    <form action={lockKind ? updateSpace : updatePlace} className="mt-8 grid items-start gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
       <input type="hidden" name="id" value={place.id} />
+      {lockKind ? <input type="hidden" name="kind" value="space" /> : null}
 
       <section className="grid gap-4 rounded-2xl bg-[#ffffff] border border-zinc-200 dark:border-none p-6 dark:bg-[#171717]">
         <h2 className="text-lg font-semibold tracking-tight">Ficha</h2>
@@ -26,6 +30,7 @@ export function PlaceForm({
           Nombre
           <Input name="name" className="dark:bg-[#262626] border border-zinc-100 dark:border-[#141212]" defaultValue={place.name} required />
         </Field>
+        {lockKind ? null : (
         <Field>
           Tipo
           <Select name="kind" className="dark:bg-[#262626] border border-zinc-100 dark:border-[#141212]" defaultValue={place.kind}>
@@ -36,6 +41,7 @@ export function PlaceForm({
             ))}
           </Select>
         </Field>
+        )}
         <Field>
           Descripción
           <Textarea name="description" className="dark:bg-[#262626] border border-zinc-100 dark:border-[#141212]" defaultValue={place.description ?? ""} />
@@ -44,7 +50,7 @@ export function PlaceForm({
           <Button size="lg" type="submit" className="cursor-pointer">
             Guardar ficha
           </Button>
-          <Link className={buttonClass("secondary", undefined, "lg")} href="/places">
+          <Link className={buttonClass("secondary", undefined, "lg")} href={lockKind ? "/espacios" : "/places"}>
             Cancelar
           </Link>
         </div>

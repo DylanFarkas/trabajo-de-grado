@@ -7,7 +7,7 @@ import {
   View,
 } from "react-native";
 
-import type { CampusPlace } from "@/places";
+import type { CampusDestination } from "@/destinations";
 
 type MapHeaderProps = {
   topInset: number;
@@ -15,8 +15,8 @@ type MapHeaderProps = {
   showSearch?: boolean;
   query: string;
   onQueryChange: (value: string) => void;
-  results: CampusPlace[];
-  onSelectResult: (place: CampusPlace) => void;
+  results: CampusDestination[];
+  onSelectResult: (place: CampusDestination) => void;
   placeholder: string;
 };
 
@@ -91,13 +91,13 @@ export function MapHeader({
         <View className="mt-2 overflow-hidden rounded-[22px] bg-white py-2 shadow-[0_16px_36px_rgba(17,17,17,0.16)] dark:bg-[#141b25] dark:shadow-[0_16px_36px_rgba(0,0,0,0.5)]">
           {results.length === 0 ? (
             <Text className="px-4 py-3 font-sans text-[15px] text-[#3a3a3c] dark:text-[#c5ccd6]">
-              No hay edificios con ese nombre
+              No hay lugares con ese nombre
             </Text>
           ) : (
             <ScrollView keyboardShouldPersistTaps="handled" className="max-h-70">
               {results.map((place) => (
                 <Pressable
-                  key={place.id}
+                  key={place.key}
                   accessibilityRole="button"
                   accessibilityLabel={place.title}
                   onPress={() => onSelectResult(place)}
@@ -111,7 +111,7 @@ export function MapHeader({
                     >
                       <View className="mr-3 size-11 items-center justify-center rounded-xl bg-[#f3f3f5] dark:bg-[#1f2632]">
                         <Text className="text-xs font-extrabold text-[#111111] dark:text-[#f2f4f7]" numberOfLines={1}>
-                          {place.code ?? place.title.slice(0, 1)}
+                          {place.badge ?? place.title.slice(0, 1)}
                         </Text>
                       </View>
                       <View className="min-w-0 flex-1">

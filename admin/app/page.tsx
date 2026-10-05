@@ -56,10 +56,11 @@ where email = '${profile.email ?? ""}';`}</pre>
           <PageHeader
             crumbs={[{ label: "Inicio" }]}
             title={`Hola${profile.full_name ? `, ${profile.full_name}` : ""}`}
-            subtitle="Edita fichas de edificios, información de los espacios, categorías y rutas."
+            subtitle="Edita fichas de edificios y espacios, información, categorías y rutas."
           />
           <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <NavCard href="/places" title="Edificios" description="Lista y fichas. Ahí se asignan las categorías." />
+            <NavCard href="/espacios" title="Espacios" description="Parqueaderos, baños y canchas. El punto se define en el mapa." />
             <NavCard
               href="/contributions"
               title="Información"
