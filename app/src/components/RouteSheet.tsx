@@ -267,7 +267,7 @@ export function RouteSheet({
                 } ${
                   routing ? "ml-2" : ""
                 }`}
-                numberOfLines={1}
+                numberOfLines={2}
               >
                 {summary}
               </Text>
@@ -360,6 +360,9 @@ export function RouteSheet({
       ) : (
         <View>
           {pendingPresetName ? null : (
+            <ModeToggle value={streetProfile} onChange={onStreetProfileChange} disabled={routing} />
+          )}
+          {pendingPresetName ? null : (
             <View className="flex-row items-center rounded-[20px] bg-[#f7f7f8] p-1 dark:bg-[#18202a]">
               <View className="min-w-0 flex-1">
                 <EndpointRow
@@ -421,7 +424,6 @@ export function RouteSheet({
 
           {showGoToCampus ? (
             <View className="mt-4">
-              <ModeToggle value={streetProfile} onChange={onStreetProfileChange} disabled={routing} />
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Ir al campus"

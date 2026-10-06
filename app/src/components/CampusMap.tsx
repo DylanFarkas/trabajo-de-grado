@@ -188,6 +188,7 @@ function buildMapHtml(initialTheme: MapTheme): string {
     }
     .route-marker.origin, .route-marker.stop { background: #111111; }
     .route-marker.dest, .route-marker.stop-last { background: #2563eb; }
+    .route-marker.parking { background: #0f766e; }
     .entrance-marker {
       width: 28px; height: 28px; border-radius: 14px;
       background: #111111; border: 2.5px solid #fff;
@@ -218,6 +219,9 @@ function buildMapHtml(initialTheme: MapTheme): string {
     body[data-theme="night"] .route-marker.stop-last {
       background: #3b82f6; color: #ffffff;
       box-shadow: 0 0 0 1.5px rgba(147,197,253,0.55), 0 0 18px rgba(59,130,246,0.6), 0 8px 18px rgba(0,0,0,0.5);
+    }
+    body[data-theme="night"] .route-marker.parking {
+      background: #2dd4bf; color: #042f2e;
     }
     body[data-theme="night"] .entrance-marker {
       border-color: #0b1220;
@@ -270,7 +274,9 @@ function buildMapHtml(initialTheme: MapTheme): string {
     var pendingTheme = null;
     var campus = null;
     var lampData = null;
-    var routeCoords = null;
+    var routeDrive = null;
+    var routeWalk = null;
+    var parkingMarker = null;
     var cameraFitted = false;
 
     function palette() { return CONFIG.palettes[theme]; }
@@ -447,60 +453,93 @@ function buildMapHtml(initialTheme: MapTheme): string {
       }
     };
 
+    function lineCollection(lines) {
+      return {
+        type: 'FeatureCollection',
+        features: (lines || []).filter(function (line) { return line && line.length >= 2; }).map(function (line) {
+          return { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: line } };
+        })
+      };
+    }
+
     function removeRouteLayers() {
-      if (map.getLayer('route-line')) map.removeLayer('route-line');
-      if (map.getLayer('route-casing')) map.removeLayer('route-casing');
-      if (map.getLayer('route-glow')) map.removeLayer('route-glow');
-      if (map.getSource('route')) map.removeSource('route');
+      ['route-line', 'route-casing', 'route-glow', 'walk-line', 'walk-casing'].forEach(function (id) {
+        if (map.getLayer(id)) map.removeLayer(id);
+      });
+      ['route', 'walk'].forEach(function (id) {
+        if (map.getSource(id)) map.removeSource(id);
+      });
     }
 
     function drawRouteLine() {
-      if (!routeCoords) {
+      var drive = lineCollection(routeDrive);
+      var walk = lineCollection(routeWalk);
+      if (!drive.features.length && !walk.features.length) {
         removeRouteLayers();
-        return;
-      }
-      var data = {
-        type: 'Feature',
-        properties: {},
-        geometry: { type: 'LineString', coordinates: routeCoords }
-      };
-      if (map.getSource('route') && map.getLayer('route-line')) {
-        map.getSource('route').setData(data);
         return;
       }
       removeRouteLayers();
       var colors = palette();
-      map.addSource('route', { type: 'geojson', data: data });
-      map.addLayer({
-        id: 'route-glow',
-        type: 'line',
-        source: 'route',
-        layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: {
-          'line-color': colors.routeGlow,
-          'line-width': 16,
-          'line-opacity': colors.routeGlowOpacity,
-          'line-blur': 6
-        }
-      });
-      map.addLayer({
-        id: 'route-casing',
-        type: 'line',
-        source: 'route',
-        layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: { 'line-color': colors.routeCasing, 'line-width': 12, 'line-opacity': 0.95 }
-      });
-      map.addLayer({
-        id: 'route-line',
-        type: 'line',
-        source: 'route',
-        layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: { 'line-color': colors.routeLine, 'line-width': 5.5, 'line-opacity': 0.98 }
-      });
+      var walkColor = theme === 'night' ? '#2dd4bf' : '#0f766e';
+      if (drive.features.length) {
+        map.addSource('route', { type: 'geojson', data: drive });
+        map.addLayer({
+          id: 'route-glow',
+          type: 'line',
+          source: 'route',
+          layout: { 'line-cap': 'round', 'line-join': 'round' },
+          paint: {
+            'line-color': colors.routeGlow,
+            'line-width': 16,
+            'line-opacity': colors.routeGlowOpacity,
+            'line-blur': 6
+          }
+        });
+        map.addLayer({
+          id: 'route-casing',
+          type: 'line',
+          source: 'route',
+          layout: { 'line-cap': 'round', 'line-join': 'round' },
+          paint: { 'line-color': colors.routeCasing, 'line-width': 12, 'line-opacity': 0.95 }
+        });
+        map.addLayer({
+          id: 'route-line',
+          type: 'line',
+          source: 'route',
+          layout: { 'line-cap': 'round', 'line-join': 'round' },
+          paint: { 'line-color': colors.routeLine, 'line-width': 5.5, 'line-opacity': 0.98 }
+        });
+      }
+      if (walk.features.length) {
+        map.addSource('walk', { type: 'geojson', data: walk });
+        map.addLayer({
+          id: 'walk-casing',
+          type: 'line',
+          source: 'walk',
+          layout: { 'line-cap': 'round', 'line-join': 'round' },
+          paint: { 'line-color': colors.routeCasing, 'line-width': 10, 'line-opacity': 0.95 }
+        });
+        map.addLayer({
+          id: 'walk-line',
+          type: 'line',
+          source: 'walk',
+          layout: { 'line-cap': 'round', 'line-join': 'round' },
+          paint: { 'line-color': walkColor, 'line-width': 5, 'line-opacity': 0.98 }
+        });
+      }
+    }
+
+    function clearParkingMarker() {
+      if (parkingMarker) {
+        parkingMarker.remove();
+        parkingMarker = null;
+      }
     }
 
     window.clearRouteLine = function () {
-      routeCoords = null;
+      routeDrive = null;
+      routeWalk = null;
+      clearParkingMarker();
       removeRouteLayers();
     };
 
@@ -513,16 +552,43 @@ function buildMapHtml(initialTheme: MapTheme): string {
       window.clearRouteLine();
     };
 
-    window.setRouteLine = function (coordinates) {
-      if (!coordinates || coordinates.length < 2) {
+    window.setRouteLine = function (payload) {
+      var drive = null;
+      var walk = null;
+      var parking = null;
+      if (Array.isArray(payload)) {
+        drive = payload.length >= 2 ? [payload] : null;
+      } else if (payload) {
+        drive = payload.drive && payload.drive.length ? payload.drive : null;
+        walk = payload.walk && payload.walk.length ? payload.walk : null;
+        parking = payload.parking || null;
+        if (!drive && !walk && payload.coordinates && payload.coordinates.length >= 2) {
+          drive = [payload.coordinates];
+        }
+      }
+      var flat = [];
+      (drive || []).concat(walk || []).forEach(function (line) {
+        (line || []).forEach(function (point) { flat.push(point); });
+      });
+      if (flat.length < 2) {
         window.clearRouteLine();
         return;
       }
-      routeCoords = coordinates;
+      routeDrive = drive;
+      routeWalk = walk;
       if (!styleBusy) drawRouteLine();
-      var bounds = coordinates.reduce(function (b, c) {
+      clearParkingMarker();
+      if (parking && parking.point) {
+        var el = document.createElement('div');
+        el.className = 'route-marker parking';
+        el.textContent = 'P';
+        parkingMarker = new maplibregl.Marker({ element: el, anchor: 'center' })
+          .setLngLat([parking.point.longitude, parking.point.latitude])
+          .addTo(map);
+      }
+      var bounds = flat.reduce(function (b, c) {
         return b.extend(c);
-      }, new maplibregl.LngLatBounds(coordinates[0], coordinates[0]));
+      }, new maplibregl.LngLatBounds(flat[0], flat[0]));
       map.fitBounds(bounds, {
         padding: {
           top: 96,
@@ -1384,6 +1450,9 @@ export function CampusMap() {
         origin: result.origin,
         destination: result.destination,
         coordinates: result.coordinates,
+        drive: result.drive?.lines ?? null,
+        walk: result.walk?.lines ?? null,
+        parking: result.parking,
       });
       inject(`
         var data = ${payload};
@@ -1391,7 +1460,12 @@ export function CampusMap() {
           window.setRouteEndpoints(data.origin, data.destination);
         }
         if (typeof window.setRouteLine === 'function') {
-          window.setRouteLine(data.coordinates);
+          window.setRouteLine({
+            drive: data.drive,
+            walk: data.walk,
+            parking: data.parking,
+            coordinates: data.coordinates
+          });
         }
       `);
     },
@@ -1474,6 +1548,16 @@ export function CampusMap() {
       }
     },
     [syncMarkers, paintRoute, clearRouteLine],
+  );
+
+  const changeStreetProfile = useCallback(
+    (next: StreetProfile) => {
+      streetProfileRef.current = next;
+      setStreetProfile(next);
+      if (preset || campusPickerOpen || !origin || !destination) return;
+      void runRoute(origin, destination, null, next);
+    },
+    [preset, campusPickerOpen, origin, destination, runRoute],
   );
 
   const runPreset = useCallback(
@@ -2446,14 +2530,16 @@ export function CampusMap() {
           routeMeta={
             !route
               ? null
-              : route.mode === "campus"
-                ? "a pie"
-                : [
-                    route.profile === "driving-car" ? "en carro" : "a pie",
-                    route.entrance ? `vía ${route.entrance.street}` : null,
-                  ]
-                    .filter(Boolean)
-                    .join(" · ")
+              : route.detail
+                ? route.detail
+                : route.mode === "campus"
+                  ? "a pie"
+                  : [
+                      route.profile === "driving-car" ? "en carro" : "a pie",
+                      route.entrance ? `vía ${route.entrance.street}` : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")
           }
           error={routeError}
           showGoToCampus={Boolean(userLocation && userOutsideCampus && !routing)}
@@ -2466,7 +2552,7 @@ export function CampusMap() {
           onRelocateEntrance={startRelocateEntrance}
           routing={routing}
           streetProfile={streetProfile}
-          onStreetProfileChange={setStreetProfile}
+          onStreetProfileChange={changeStreetProfile}
           presetName={preset?.name ?? null}
           presetStops={preset?.stops ?? null}
         />

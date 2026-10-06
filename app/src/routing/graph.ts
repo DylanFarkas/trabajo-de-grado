@@ -25,6 +25,8 @@ type GraphEdge = {
   weight: number;
   /** Coordinates from parent -> to as [lon, lat] */
   coords: [number, number][];
+  /** Calle o vía interna. Los senderos y pasillos quedan en false. */
+  vehicle: boolean;
 };
 
 type GraphNode = {
@@ -39,7 +41,32 @@ type RawEdge = {
   weight: number;
   coords: [number, number][];
   oneway: boolean;
+  vehicle: boolean;
 };
+
+export type RouteMode = "walk" | "drive";
+
+const VEHICLE_HIGHWAYS = new Set([
+  "service",
+  "tertiary",
+  "tertiary_link",
+  "secondary",
+  "primary",
+  "primary_link",
+]);
+
+/** Un parqueadero enganchado a un sendero también se conecta a la vía si queda a esta distancia. */
+const PARKING_DRIVE_SNAP_M = 40;
+
+function isVehicleHighway(props: { highway?: unknown; access?: unknown }): boolean {
+  const highway = props.highway;
+  if (typeof highway !== "string" || !VEHICLE_HIGHWAYS.has(highway)) return false;
+  return props.access !== "no";
+}
+
+function nodeTouchesVehicle(raw: RawEdge[], id: number): boolean {
+  return raw.some((edge) => edge.vehicle && (edge.from === id || edge.to === id));
+}
 
 /** Join an existing node if the drawn end is already on it. */
 const SNAP_NODE_M = 4;
@@ -152,6 +179,7 @@ function splitRawEdge(
       weight: edge.weight * (leftLen / sum),
       coords: leftCoords,
       oneway: edge.oneway,
+      vehicle: edge.vehicle,
     },
     {
       from: id,
@@ -159,6 +187,7 @@ function splitRawEdge(
       weight: edge.weight * (rightLen / sum),
       coords: rightCoords,
       oneway: edge.oneway,
+      vehicle: edge.vehicle,
     },
   );
   return id;
@@ -170,11 +199,14 @@ function snapEndpoint(
   raw: RawEdge[],
   nextId: { value: number },
   edgeOnly = false,
+  vehicleOnly = false,
+  maxEdgeM = SNAP_EDGE_M,
 ): number | null {
   if (!edgeOnly) {
     let bestNode: number | null = null;
     let bestNodeD = Infinity;
     for (const node of nodes.values()) {
+      if (vehicleOnly && !nodeTouchesVehicle(raw, node.id)) continue;
       const d = haversineM(
         { longitude: point[0], latitude: point[1] },
         { longitude: node.longitude, latitude: node.latitude },
@@ -194,6 +226,7 @@ function snapEndpoint(
     distanceM: number;
   } | null = null;
   for (let edgeIndex = 0; edgeIndex < raw.length; edgeIndex++) {
+    if (vehicleOnly && !raw[edgeIndex].vehicle) continue;
     const coords = raw[edgeIndex].coords;
     for (let segIndex = 0; segIndex < coords.length - 1; segIndex++) {
       const hit = closestOnSegment(point, coords[segIndex], coords[segIndex + 1]);
@@ -202,7 +235,7 @@ function snapEndpoint(
       }
     }
   }
-  if (!best || best.distanceM > SNAP_EDGE_M) return null;
+  if (!best || best.distanceM > maxEdgeM) return null;
   return splitRawEdge(raw, nodes, best.edgeIndex, best.segIndex, best.t, nextId);
 }
 
@@ -252,6 +285,7 @@ function spliceEntrances(nodes: Map<number, GraphNode>, raw: RawEdge[]) {
           [point[0], point[1]],
         ],
         oneway: false,
+        vehicle: nodeTouchesVehicle(raw, snappedId),
       });
     }
 
@@ -295,6 +329,7 @@ function splicePassages(nodes: Map<number, GraphNode>, raw: RawEdge[]) {
       weight: stated > 0 ? stated : chainLengthM(line),
       coords: line,
       oneway: isOneway(feature.properties?.oneway),
+      vehicle: false,
     });
   }
 }
@@ -422,6 +457,36 @@ function spliceSpaces(nodes: Map<number, GraphNode>, raw: RawEdge[]) {
               [anchor[0], anchor[1]],
             ],
             oneway: false,
+            vehicle: nodeTouchesVehicle(raw, snappedId),
+          });
+        }
+      }
+    }
+
+    if (
+      props.tipo === "parqueadero" &&
+      nodeId != null &&
+      !nodeTouchesVehicle(raw, nodeId)
+    ) {
+      const driveId = snapEndpoint(anchor, nodes, raw, nextId, true, true, PARKING_DRIVE_SNAP_M);
+      const driveNode = driveId == null ? undefined : nodes.get(driveId);
+      const parkNode = nodes.get(nodeId);
+      if (driveId != null && driveId !== nodeId && driveNode && parkNode) {
+        const gap = haversineM(
+          { longitude: parkNode.longitude, latitude: parkNode.latitude },
+          { longitude: driveNode.longitude, latitude: driveNode.latitude },
+        );
+        if (gap > 0.4) {
+          raw.push({
+            from: driveId,
+            to: nodeId,
+            weight: gap,
+            coords: [
+              [driveNode.longitude, driveNode.latitude],
+              [parkNode.longitude, parkNode.latitude],
+            ],
+            oneway: false,
+            vehicle: true,
           });
         }
       }
@@ -479,7 +544,14 @@ function buildCampusGraph() {
     if (!nodes.has(from) || !nodes.has(to)) continue;
     const coords = lineCoords(feature.geometry);
     if (coords.length < 2) continue;
-    raw.push({ from, to, weight, coords, oneway: isOneway(props.oneway) });
+    raw.push({
+      from,
+      to,
+      weight,
+      coords,
+      oneway: isOneway(props.oneway),
+      vehicle: isVehicleHighway(props),
+    });
   }
 
   splicePassages(nodes, raw);
@@ -495,17 +567,32 @@ function buildCampusGraph() {
     if (!nodes.has(edge.from) || !nodes.has(edge.to) || !(edge.weight > 0)) continue;
     ensure(edge.from);
     ensure(edge.to);
-    adj.get(edge.from)!.push({ to: edge.to, weight: edge.weight, coords: edge.coords });
+    adj.get(edge.from)!.push({
+      to: edge.to,
+      weight: edge.weight,
+      coords: edge.coords,
+      vehicle: edge.vehicle,
+    });
     if (!edge.oneway) {
       adj.get(edge.to)!.push({
         to: edge.from,
         weight: edge.weight,
         coords: [...edge.coords].reverse(),
+        vehicle: edge.vehicle,
       });
     }
   }
 
-  return { nodes, adj };
+  const driveNodes = new Set<number>();
+  for (const [from, edges] of adj) {
+    for (const edge of edges) {
+      if (!edge.vehicle) continue;
+      driveNodes.add(from);
+      driveNodes.add(edge.to);
+    }
+  }
+
+  return { nodes, adj, driveNodes };
 }
 
 const GRAPH = buildCampusGraph();
@@ -523,10 +610,11 @@ function haversineM(a: LatLng, b: LatLng): number {
   return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
 }
 
-export function nearestNodeId(point: LatLng): number | null {
+export function nearestNodeId(point: LatLng, mode: RouteMode = "walk"): number | null {
   let bestId: number | null = null;
   let best = Infinity;
   for (const node of GRAPH.nodes.values()) {
+    if (mode === "drive" && !GRAPH.driveNodes.has(node.id)) continue;
     const d = haversineM(point, {
       latitude: node.latitude,
       longitude: node.longitude,
@@ -545,8 +633,12 @@ export function nodeLatLng(id: number): LatLng | null {
   return { latitude: node.latitude, longitude: node.longitude };
 }
 
-/** Dijkstra shortest path by longitud_m. */
-export function shortestPath(originId: number, destinationId: number): RouteResult | null {
+/** Dijkstra shortest path by longitud_m. En carro solo recorre vías. */
+export function shortestPath(
+  originId: number,
+  destinationId: number,
+  mode: RouteMode = "walk",
+): RouteResult | null {
   if (originId === destinationId) {
     const p = nodeLatLng(originId);
     if (!p) return null;
@@ -581,6 +673,7 @@ export function shortestPath(originId: number, destinationId: number): RouteResu
 
     const edges = GRAPH.adj.get(u) ?? [];
     for (const edge of edges) {
+      if (mode === "drive" && !edge.vehicle) continue;
       if (visited.has(edge.to)) continue;
       const nd = best + edge.weight;
       if (nd < (dist.get(edge.to) ?? Infinity)) {
@@ -661,11 +754,12 @@ export function entrancePoint(
 export function routeBetweenPoints(
   origin: LatLng,
   destination: LatLng,
+  mode: RouteMode = "walk",
 ): RouteResult | null {
-  const a = nearestNodeId(origin);
-  const b = nearestNodeId(destination);
+  const a = nearestNodeId(origin, mode);
+  const b = nearestNodeId(destination, mode);
   if (a == null || b == null) return null;
-  return shortestPath(a, b);
+  return shortestPath(a, b, mode);
 }
 
 export function formatDistance(meters: number): string {
@@ -723,6 +817,41 @@ export function nearestSpace(
   for (const space of SPACE_LIST) {
     if (space.tipo !== tipo || space.nodeId == null) continue;
     const distance = distances.get(space.nodeId) ?? Infinity;
+    if (distance < bestDistance) {
+      best = space;
+      bestDistance = distance;
+    }
+  }
+  if (!best || bestDistance === Infinity) return null;
+  return { ...toCampusSpace(best), distanceM: bestDistance };
+}
+
+/** El punto cae en el nodo de un parqueadero. */
+export function parkingForPoint(point: LatLng): CampusSpace | null {
+  const id = nearestNodeId(point);
+  if (id == null) return null;
+  const space = SPACE_LIST.find((item) => item.tipo === "parqueadero" && item.nodeId === id);
+  if (!space?.nodeId) return null;
+  const node = nodeLatLng(space.nodeId);
+  if (!node || haversineM(point, node) > 30) return null;
+  return toCampusSpace(space);
+}
+
+/** Parqueadero alcanzable en carro con menor caminata hasta el destino. */
+export function nearestDriveParking(
+  destination: LatLng,
+): (CampusSpace & { distanceM: number }) | null {
+  const destinationId = nearestNodeId(destination);
+  if (destinationId == null) return null;
+  let best: SpaceNode | null = null;
+  let bestDistance = Infinity;
+  for (const space of SPACE_LIST) {
+    if (space.tipo !== "parqueadero" || space.nodeId == null) continue;
+    if (!GRAPH.driveNodes.has(space.nodeId)) continue;
+    const distance =
+      space.nodeId === destinationId
+        ? 0
+        : (shortestPath(space.nodeId, destinationId, "walk")?.distanceM ?? Infinity);
     if (distance < bestDistance) {
       best = space;
       bestDistance = distance;

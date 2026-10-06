@@ -4,7 +4,12 @@ import {
   type CampusEntrance,
 } from "@/constants/entrances";
 import {
+  nearestDriveParking,
+  nearestNodeId,
+  nodeLatLng,
+  parkingForPoint,
   routeBetweenPoints,
+  spacePoint,
   type LatLng,
   type RouteResult,
 } from "./graph";
@@ -14,12 +19,35 @@ import {
   type StreetProfile,
 } from "./openRouteService";
 
+export type RouteLeg = {
+  lines: [number, number][][];
+  distanceM: number;
+};
+
 export type HybridRouteResult = RouteResult & {
   mode: "campus" | "street" | "hybrid";
   durationS: number | null;
   entrance: CampusEntrance | null;
   profile?: StreetProfile;
+  /** Tramo en carro. Ausente cuando toda la ruta es a pie. */
+  drive: RouteLeg | null;
+  /** Tramo a pie de una ruta en carro. */
+  walk: RouteLeg | null;
+  /** Parqueadero donde se deja o se toma el carro. */
+  parking: { name: string; point: LatLng } | null;
+  /** Texto corto: "en carro hasta P6 · luego a pie". */
+  detail: string | null;
 };
+
+export class CampusRouteError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "CampusRouteError";
+  }
+}
+
+const ON_ROAD_M = 40;
+const CAMPUS_DRIVE_MPS = 6;
 
 export function pointInCampus(point: LatLng): boolean {
   return (
@@ -69,6 +97,10 @@ export async function routeHybrid(
   profile: StreetProfile = "foot-walking",
   viaEntrance: LatLng | null = null,
 ): Promise<HybridRouteResult | null> {
+  if (profile === "driving-car") {
+    return routeByCar(origin, destination, viaEntrance);
+  }
+
   const originInside = pointInCampus(origin);
   const destInside = pointInCampus(destination);
 
@@ -80,6 +112,10 @@ export async function routeHybrid(
       mode: "campus",
       durationS: null,
       entrance: null,
+      drive: null,
+      walk: null,
+      parking: null,
+      detail: null,
     };
   }
 
@@ -94,6 +130,10 @@ export async function routeHybrid(
       mode: "street",
       durationS: street.durationS,
       entrance: null,
+      drive: null,
+      walk: null,
+      parking: null,
+      detail: null,
     };
   }
 
@@ -122,6 +162,10 @@ export async function routeHybrid(
         mode: "street",
         durationS: street.durationS,
         entrance,
+        drive: null,
+        walk: null,
+        parking: null,
+        detail: null,
       };
     }
 
@@ -136,6 +180,10 @@ export async function routeHybrid(
         mode: "street",
         durationS: street.durationS,
         entrance,
+        drive: null,
+        walk: null,
+        parking: null,
+        detail: null,
       };
     }
 
@@ -149,6 +197,10 @@ export async function routeHybrid(
       mode: "hybrid",
       durationS: street.durationS + campus.distanceM / 1.4,
       entrance,
+      drive: null,
+      walk: null,
+      parking: null,
+      detail: null,
     };
   }
 
@@ -175,6 +227,10 @@ export async function routeHybrid(
       mode: "street",
       durationS: street.durationS,
       entrance,
+      drive: null,
+      walk: null,
+      parking: null,
+      detail: null,
     };
   }
 
@@ -187,6 +243,225 @@ export async function routeHybrid(
     mode: "hybrid",
     durationS: street.durationS + campus.distanceM / 1.4,
     entrance,
+    drive: null,
+    walk: null,
+    parking: null,
+    detail: null,
+  };
+}
+
+const NO_PARKING = "No hay un parqueadero accesible en carro cerca de ese destino";
+const NO_DRIVE = "No hay una vía en carro hasta ese parqueadero";
+
+function parkingName(space: { etiqueta: string | null; nombre: string }): string {
+  return space.etiqueta || space.nombre;
+}
+
+function onDriveNetwork(point: LatLng): boolean {
+  const id = nearestNodeId(point, "drive");
+  const node = id == null ? null : nodeLatLng(id);
+  return node != null && haversineM(point, node) <= ON_ROAD_M;
+}
+
+function chosenEntrance(viaEntrance: LatLng | null): CampusEntrance | null {
+  if (!viaEntrance) return null;
+  return (
+    matchEntrance(viaEntrance) ?? {
+      id: "custom",
+      name: "Entrada elegida",
+      street: "Entrada elegida",
+      point: viaEntrance,
+    }
+  );
+}
+
+/** Portería que minimiza la calle más la conducción interna. */
+function pickDrivingGate(
+  outside: LatLng,
+  campusPoint: LatLng,
+  campusIsDestination: boolean,
+): CampusEntrance | null {
+  let best: CampusEntrance | null = null;
+  let bestScore = Infinity;
+  for (const entrance of CAMPUS_ENTRANCES) {
+    const street = haversineM(outside, entrance.point);
+    const drive = campusIsDestination
+      ? routeBetweenPoints(entrance.point, campusPoint, "drive")
+      : routeBetweenPoints(campusPoint, entrance.point, "drive");
+    if (!drive) continue;
+    const score = street + drive.distanceM;
+    if (score < bestScore) {
+      bestScore = score;
+      best = entrance;
+    }
+  }
+  return best;
+}
+
+function lotPointOf(id: string): LatLng | null {
+  return spacePoint(id);
+}
+
+async function routeByCar(
+  origin: LatLng,
+  destination: LatLng,
+  viaEntrance: LatLng | null,
+): Promise<HybridRouteResult> {
+  const originInside = pointInCampus(origin);
+  const destInside = pointInCampus(destination);
+
+  if (!originInside && !destInside) {
+    const street = await fetchStreetRoute(origin, destination, "driving-car");
+    return {
+      nodeIds: [],
+      coordinates: street.coordinates,
+      distanceM: street.distanceM,
+      origin,
+      destination,
+      mode: "street",
+      durationS: street.durationS,
+      entrance: null,
+      drive: { lines: [street.coordinates], distanceM: street.distanceM },
+      walk: null,
+      parking: null,
+      detail: "en carro",
+    };
+  }
+
+  if (destInside) {
+    return routeCarTowardCampus(origin, destination, viaEntrance, originInside);
+  }
+  return routeCarLeavingCampus(origin, destination, viaEntrance);
+}
+
+async function routeCarTowardCampus(
+  origin: LatLng,
+  destination: LatLng,
+  viaEntrance: LatLng | null,
+  originInside: boolean,
+): Promise<HybridRouteResult> {
+  const atLot = parkingForPoint(destination);
+  const lot = atLot ?? nearestDriveParking(destination);
+  const lotPoint = lot ? lotPointOf(lot.id) : null;
+  if (!lot || !lotPoint) throw new CampusRouteError(NO_PARKING);
+
+  const walkAfter = atLot ? null : routeBetweenPoints(lotPoint, destination, "walk");
+  if (!atLot && !walkAfter) {
+    throw new CampusRouteError("No hay camino a pie desde el parqueadero hasta el destino");
+  }
+
+  let walkBefore: RouteResult | null = null;
+  let driveFrom = origin;
+  let startLotName: string | null = null;
+  if (originInside && !onDriveNetwork(origin)) {
+    const startLot = nearestDriveParking(origin);
+    const startPoint = startLot ? lotPointOf(startLot.id) : null;
+    if (!startLot || !startPoint) throw new CampusRouteError(NO_PARKING);
+    walkBefore = routeBetweenPoints(origin, startPoint, "walk");
+    if (!walkBefore) throw new CampusRouteError("No hay camino a pie hasta un parqueadero");
+    driveFrom = startPoint;
+    if (startLot.id !== lot.id) startLotName = parkingName(startLot);
+  }
+
+  let entrance: CampusEntrance | null = null;
+  let streetMeters = 0;
+  let streetSeconds = 0;
+  const driveLines: [number, number][][] = [];
+  if (!originInside) {
+    entrance = chosenEntrance(viaEntrance) ?? pickDrivingGate(origin, lotPoint, true);
+    if (!entrance) throw new CampusRouteError(NO_DRIVE);
+    const street = await fetchStreetRoute(origin, entrance.point, "driving-car");
+    streetMeters = street.distanceM;
+    streetSeconds = street.durationS;
+    driveLines.push(street.coordinates);
+    driveFrom = entrance.point;
+  }
+
+  const driveCampus = samePoint(driveFrom, lotPoint)
+    ? null
+    : routeBetweenPoints(driveFrom, lotPoint, "drive");
+  if (!samePoint(driveFrom, lotPoint) && !driveCampus) throw new CampusRouteError(NO_DRIVE);
+  if (driveCampus && driveCampus.coordinates.length >= 2) driveLines.push(driveCampus.coordinates);
+
+  const walkLines: [number, number][][] = [];
+  if (walkBefore && walkBefore.coordinates.length >= 2) walkLines.push(walkBefore.coordinates);
+  if (walkAfter && walkAfter.coordinates.length >= 2) walkLines.push(walkAfter.coordinates);
+
+  const driveM = streetMeters + (driveCampus?.distanceM ?? 0);
+  const walkM = (walkBefore?.distanceM ?? 0) + (walkAfter?.distanceM ?? 0);
+  const coordinates = driveLines.concat(walkLines).reduce(mergeCoordinates, [] as [number, number][]);
+  const lotLabel = parkingName(lot);
+  const drove = driveM >= 1;
+  const parts = [
+    startLotName ? `a pie hasta ${startLotName}` : null,
+    drove ? (atLot && !startLotName ? "en carro" : `en carro hasta ${lotLabel}`) : null,
+    walkAfter ? (drove || startLotName ? "luego a pie" : "a pie") : null,
+  ].filter(Boolean);
+
+  return {
+    nodeIds: driveCampus?.nodeIds ?? [],
+    coordinates,
+    distanceM: driveM + walkM,
+    origin,
+    destination,
+    mode: walkLines.length || entrance ? "hybrid" : "campus",
+    durationS: streetSeconds + (driveCampus?.distanceM ?? 0) / CAMPUS_DRIVE_MPS + walkM / 1.4,
+    entrance,
+    drive: driveLines.length ? { lines: driveLines, distanceM: driveM } : null,
+    walk: walkLines.length ? { lines: walkLines, distanceM: walkM } : null,
+    parking: atLot ? null : { name: lotLabel, point: lotPoint },
+    detail: parts.join(" · ") || null,
+  };
+}
+
+async function routeCarLeavingCampus(
+  origin: LatLng,
+  destination: LatLng,
+  viaEntrance: LatLng | null,
+): Promise<HybridRouteResult> {
+  let driveFrom = origin;
+  let walkBefore: RouteResult | null = null;
+  let parking: { name: string; point: LatLng } | null = null;
+
+  if (!onDriveNetwork(origin)) {
+    const startLot = nearestDriveParking(origin);
+    const startPoint = startLot ? lotPointOf(startLot.id) : null;
+    if (!startLot || !startPoint) throw new CampusRouteError(NO_PARKING);
+    walkBefore = routeBetweenPoints(origin, startPoint, "walk");
+    if (!walkBefore) throw new CampusRouteError("No hay camino a pie hasta un parqueadero");
+    driveFrom = startPoint;
+    parking = { name: parkingName(startLot), point: startPoint };
+  }
+
+  const entrance = chosenEntrance(viaEntrance) ?? pickDrivingGate(destination, driveFrom, false);
+  if (!entrance) throw new CampusRouteError(NO_DRIVE);
+  const driveCampus = samePoint(driveFrom, entrance.point)
+    ? null
+    : routeBetweenPoints(driveFrom, entrance.point, "drive");
+  if (!samePoint(driveFrom, entrance.point) && !driveCampus) throw new CampusRouteError(NO_DRIVE);
+  const street = await fetchStreetRoute(entrance.point, destination, "driving-car");
+
+  const driveLines: [number, number][][] = [];
+  if (driveCampus && driveCampus.coordinates.length >= 2) driveLines.push(driveCampus.coordinates);
+  if (street.coordinates.length >= 2) driveLines.push(street.coordinates);
+  const walkLines = walkBefore && walkBefore.coordinates.length >= 2 ? [walkBefore.coordinates] : [];
+  const driveM = (driveCampus?.distanceM ?? 0) + street.distanceM;
+  const walkM = walkBefore?.distanceM ?? 0;
+  const coordinates = walkLines.concat(driveLines).reduce(mergeCoordinates, [] as [number, number][]);
+
+  return {
+    nodeIds: driveCampus?.nodeIds ?? [],
+    coordinates,
+    distanceM: driveM + walkM,
+    origin,
+    destination,
+    mode: "hybrid",
+    durationS: street.durationS + (driveCampus?.distanceM ?? 0) / CAMPUS_DRIVE_MPS + walkM / 1.4,
+    entrance,
+    drive: { lines: driveLines, distanceM: driveM },
+    walk: walkLines.length ? { lines: walkLines, distanceM: walkM } : null,
+    parking,
+    detail: parking ? `a pie hasta ${parking.name} · luego en carro` : "en carro",
   };
 }
 
@@ -353,6 +628,10 @@ export function routeThroughPoints(
     mode: "campus",
     durationS: null,
     entrance: null,
+    drive: null,
+    walk: null,
+    parking: null,
+    detail: null,
   };
 }
 
