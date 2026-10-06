@@ -4,6 +4,7 @@ import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { Icon } from "@/components/Icon";
 import { SnapSheet } from "@/components/SnapSheet";
 import type { CampusEntrance } from "@/constants/entrances";
+import type { WalkCost } from "@/routing/graph";
 import type { StreetProfile } from "@/routing/openRouteService";
 
 export type RouteSlot = "origin" | "destination";
@@ -36,6 +37,8 @@ type RouteSheetProps = {
   onRelocateEntrance?: (entranceId: string) => void;
   streetProfile?: StreetProfile;
   onStreetProfileChange?: (profile: StreetProfile) => void;
+  nightChoiceOpen?: boolean;
+  onChooseWalkCost?: (cost: WalkCost) => void;
   presetName?: string | null;
   presetStops?: { letter: string; name: string }[] | null;
   pendingPresetName?: string | null;
@@ -190,6 +193,8 @@ export function RouteSheet({
   onSelectEntrance,
   streetProfile = "foot-walking",
   onStreetProfileChange,
+  nightChoiceOpen = false,
+  onChooseWalkCost,
   presetName = null,
   presetStops = null,
   pendingPresetName = null,
@@ -201,16 +206,20 @@ export function RouteSheet({
 
   useEffect(() => {
     setExpanded(true);
-  }, [searchSlot, campusPickerOpen, showGoToCampus, presetName, pendingPresetName, error]);
+  }, [searchSlot, campusPickerOpen, showGoToCampus, presetName, pendingPresetName, error, nightChoiceOpen]);
 
   const title = campusPickerOpen
     ? "Entradas al campus"
-    : presetName ?? pendingPresetName ?? (destinationName ? `Ir a ${destinationName}` : "Tu ruta");
+    : presetName ??
+      pendingPresetName ??
+      (nightChoiceOpen ? "¿Cómo quieres ir?" : destinationName ? `Ir a ${destinationName}` : "Tu ruta");
 
   const summary = campusPickerOpen
     ? relocatingEntranceId
       ? "Toca el mapa para colocar la entrada"
       : "Elige por cuál entrada llegar"
+    : nightChoiceOpen
+      ? "De noche puedes elegir"
     : routing
       ? "Calculando la mejor ruta…"
       : distanceLabel
@@ -393,6 +402,57 @@ export function RouteSheet({
               </Pressable>
             </View>
           )}
+
+          {nightChoiceOpen ? (
+            <View className="mt-3">
+              {(
+                [
+                  {
+                    id: "short" as const,
+                    title: "La más corta",
+                    detail: "Menos metros, aunque pase por tramos oscuros",
+                    icon: "directions-walk" as const,
+                  },
+                  {
+                    id: "lit" as const,
+                    title: "La más iluminada",
+                    detail: "Evita lo que no está bajo un poste, aunque sea más larga",
+                    icon: "lightbulb" as const,
+                  },
+                ] satisfies {
+                  id: WalkCost;
+                  title: string;
+                  detail: string;
+                  icon: "directions-walk" | "lightbulb";
+                }[]
+              ).map((option) => (
+                <Pressable
+                  key={option.id}
+                  accessibilityRole="button"
+                  accessibilityLabel={option.title}
+                  disabled={routing}
+                  onPress={() => onChooseWalkCost?.(option.id)}
+                  className="mb-2 flex-row items-center rounded-2xl bg-[#f7f7f8] px-4 py-3 active:opacity-80 dark:bg-[#18202a]"
+                >
+                  <View className="mr-3 size-10 items-center justify-center rounded-full bg-[#111111] dark:bg-[#f2f4f7]">
+                    <Icon
+                      name={option.icon}
+                      size={20}
+                      colorClassName="accent-white dark:accent-[#0b0f16]"
+                    />
+                  </View>
+                  <View className="min-w-0 flex-1">
+                    <Text className="text-[15px] font-semibold text-[#111111] dark:text-[#f2f4f7]">
+                      {option.title}
+                    </Text>
+                    <Text className="mt-0.5 text-[13px] leading-5 text-[#8e8e93] dark:text-[#8b95a5]">
+                      {option.detail}
+                    </Text>
+                  </View>
+                </Pressable>
+              ))}
+            </View>
+          ) : null}
 
           {searchSlot === "origin" && onUseMyLocation ? (
             <View className={pendingPresetName ? "" : "mt-3"}>

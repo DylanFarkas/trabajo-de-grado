@@ -9,13 +9,25 @@ import type {
   SpaceFeatureCollection,
   SpaceKind,
 } from "@/types/campus";
+import { darkMeters } from "./lampLight";
 
 export type LatLng = { latitude: number; longitude: number };
+
+/** `short`: menos metros. `lit`: menos metros a oscuras y, si empatan, menos metros. */
+export type WalkCost = "short" | "lit";
+
+/**
+ * Mayor que cualquier camino del campus. En la ruta iluminada los metros a
+ * oscuras ganan, y la longitud solo desempata.
+ */
+const DARK_FIRST_M = 1_000_000;
 
 export type RouteResult = {
   nodeIds: number[];
   coordinates: [number, number][]; // [lon, lat]
   distanceM: number;
+  /** Metros del camino que no caen bajo un poste. Solo lo trae el grafo del campus. */
+  darkM?: number;
   origin: LatLng;
   destination: LatLng;
 };
@@ -23,6 +35,8 @@ export type RouteResult = {
 type GraphEdge = {
   to: number;
   weight: number;
+  /** Metros de `weight` fuera de un charco de luz. */
+  darkM: number;
   /** Coordinates from parent -> to as [lon, lat] */
   coords: [number, number][];
   /** Calle o vía interna. Los senderos y pasillos quedan en false. */
@@ -567,9 +581,11 @@ function buildCampusGraph() {
     if (!nodes.has(edge.from) || !nodes.has(edge.to) || !(edge.weight > 0)) continue;
     ensure(edge.from);
     ensure(edge.to);
+    const darkM = darkMeters(edge.coords, edge.weight);
     adj.get(edge.from)!.push({
       to: edge.to,
       weight: edge.weight,
+      darkM,
       coords: edge.coords,
       vehicle: edge.vehicle,
     });
@@ -577,6 +593,7 @@ function buildCampusGraph() {
       adj.get(edge.to)!.push({
         to: edge.from,
         weight: edge.weight,
+        darkM,
         coords: [...edge.coords].reverse(),
         vehicle: edge.vehicle,
       });
@@ -633,11 +650,17 @@ export function nodeLatLng(id: number): LatLng | null {
   return { latitude: node.latitude, longitude: node.longitude };
 }
 
-/** Dijkstra shortest path by longitud_m. En carro solo recorre vías. */
+function edgeCost(edge: GraphEdge, mode: RouteMode, cost: WalkCost): number {
+  if (mode === "drive" || cost === "short") return edge.weight;
+  return edge.darkM * DARK_FIRST_M + edge.weight;
+}
+
+/** Dijkstra. A pie puede preferir luz; en carro solo recorre vías, por metros. */
 export function shortestPath(
   originId: number,
   destinationId: number,
   mode: RouteMode = "walk",
+  cost: WalkCost = "short",
 ): RouteResult | null {
   if (originId === destinationId) {
     const p = nodeLatLng(originId);
@@ -646,6 +669,7 @@ export function shortestPath(
       nodeIds: [originId],
       coordinates: [[p.longitude, p.latitude]],
       distanceM: 0,
+      darkM: 0,
       origin: p,
       destination: p,
     };
@@ -675,7 +699,7 @@ export function shortestPath(
     for (const edge of edges) {
       if (mode === "drive" && !edge.vehicle) continue;
       if (visited.has(edge.to)) continue;
-      const nd = best + edge.weight;
+      const nd = best + edgeCost(edge, mode, cost);
       if (nd < (dist.get(edge.to) ?? Infinity)) {
         dist.set(edge.to, nd);
         prev.set(edge.to, { from: u, edge });
@@ -711,10 +735,18 @@ export function shortestPath(
   const destination = nodeLatLng(destinationId);
   if (!origin || !destination || coordinates.length < 2) return null;
 
+  let distanceM = 0;
+  let darkM = 0;
+  for (const edge of edgeChain) {
+    distanceM += edge.weight;
+    darkM += edge.darkM;
+  }
+
   return {
     nodeIds,
     coordinates,
-    distanceM: dist.get(destinationId) ?? 0,
+    distanceM,
+    darkM,
     origin,
     destination,
   };
@@ -755,11 +787,12 @@ export function routeBetweenPoints(
   origin: LatLng,
   destination: LatLng,
   mode: RouteMode = "walk",
+  cost: WalkCost = "short",
 ): RouteResult | null {
   const a = nearestNodeId(origin, mode);
   const b = nearestNodeId(destination, mode);
   if (a == null || b == null) return null;
-  return shortestPath(a, b, mode);
+  return shortestPath(a, b, mode, cost);
 }
 
 export function formatDistance(meters: number): string {

@@ -1,0 +1,1092 @@
+{
+  "type": "FeatureCollection",
+  "name": "postes_semilla",
+  "crs": {
+    "type": "name",
+    "properties": {
+      "name": "urn:ogc:def:crs:OGC:1.3:CRS84"
+    }
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "S-001",
+        "tipo": "peatonal",
+        "brazos": 1,
+        "estado": "sin_verificar",
+        "verificado": null,
+        "notas": "Semilla de prueba. Senderos internos, entre la Biblioteca y la cafetería, y junto a los auditorios. Se puede borrar."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -76.5346128,
+          3.3740609
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "S-002",
+        "tipo": "peatonal",
+        "brazos": 1,
+        "estado": "sin_verificar",
+        "verificado": null,
+        "notas": "Semilla de prueba. Senderos internos, entre la Biblioteca y la cafetería, y junto a los auditorios. Se puede borrar."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -76.5346025,
+          3.3739547
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "S-003",
+        "tipo": "peatonal",
+        "brazos": 1,
+        "estado": "sin_verificar",
+        "verificado": null,
+        "notas": "Semilla de prueba. Senderos internos, entre la Biblioteca y la cafetería, y junto a los auditorios. Se puede borrar."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -76.5346952,
+          3.3738463
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "S-004",
+        "tipo": "peatonal",
+        "brazos": 1,
+        "estado": "sin_verificar",
+        "verificado": null,
+        "notas": "Semilla de prueba. Senderos internos, entre la Biblioteca y la cafetería, y junto a los auditorios. Se puede borrar."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -76.5347743,
+          3.3737261
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "S-005",
+        "tipo": "peatonal",
+        "brazos": 1,
+        "estado": "sin_verificar",
+        "verificado": null,
+        "notas": "Semilla de prueba. Senderos internos, entre la Biblioteca y la cafetería, y junto a los auditorios. Se puede borrar."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -76.5348228,
+          3.3735924
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "S-006",
+        "tipo": "peatonal",
+        "brazos": 1,
+        "estado": "sin_verificar",
+        "verificado": null,
+        "notas": "Semilla de prueba. Senderos internos, entre la Biblioteca y la cafetería, y junto a los auditorios. Se puede borrar."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -76.534823,
+          3.3734487
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "S-007",
+        "tipo": "peatonal",
+        "brazos": 1,
+        "estado": "sin_verificar",
+        "verificado": null,
+        "notas": "Semilla de prueba. Senderos internos, entre la Biblioteca y la cafetería, y junto a los auditorios. Se puede borrar."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -76.5348421,
+          3.3733061
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "S-008",
+        "tipo": "peatonal",
+        "brazos": 1,
+        "estado": "sin_verificar",
+        "verificado": null,
+        "notas": "Semilla de prueba. Senderos internos, entre la Biblioteca y la cafetería, y junto a los auditorios. Se puede borrar."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -76.5348121,
+          3.3731723
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "S-009",
+        "tipo": "peatonal",
+        "brazos": 1,
+        "estado": "sin_verificar",
+        "verificado": null,
+        "notas": "Semilla de prueba. Senderos internos, entre la Biblioteca y la cafetería, y junto a los auditorios. Se puede borrar."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -76.5347126,
+          3.3730743
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "S-010",
+        "tipo": "peatonal",
+        "brazos": 1,
+        "estado": "sin_verificar",
+        "verificado": null,
+        "notas": "Semilla de prueba. Senderos internos, entre la Biblioteca y la cafetería, y junto a los auditorios. Se puede borrar."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -76.5347809,
+          3.3729572
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "S-011",
+        "tipo": "peatonal",
+        "brazos": 1,
+        "estado": "sin_verificar",
+        "verificado": null,
+        "notas": "Semilla de prueba. Senderos internos, entre la Biblioteca y la cafetería, y junto a los auditorios. Se puede borrar."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -76.5348128,
+          3.37282
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "S-012",
+        "tipo": "peatonal",
+        "brazos": 1,
+        "estado": "sin_verificar",
+        "verificado": null,
+        "notas": "Semilla de prueba. Senderos internos, entre la Biblioteca y la cafetería, y junto a los auditorios. Se puede borrar."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -76.5348288,
+          3.372677
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "S-013",
+        "tipo": "peatonal",
+        "brazos": 1,
+        "estado": "sin_verificar",
+        "verificado": null,
+        "notas": "Semilla de prueba. Senderos internos, entre la Biblioteca y la cafetería, y junto a los auditorios. Se puede borrar."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -76.5348378,
+          3.3724911
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "S-014",
+        "tipo": "peatonal",
+        "brazos": 1,
+        "estado": "sin_verificar",
+        "verificado": null,
+        "notas": "Semilla de prueba. Senderos internos, entre la Biblioteca y la cafetería, y junto a los auditorios. Se puede borrar."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -76.534843,
+          3.3723473
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "S-015",
+        "tipo": "peatonal",
+        "brazos": 1,
+        "estado": "sin_verificar",
+        "verificado": null,
+        "notas": "Semilla de prueba. Senderos internos, entre la Biblioteca y la cafetería, y junto a los auditorios. Se puede borrar."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -76.5348511,
+          3.3722037
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "S-016",
+        "tipo": "peatonal",
+        "brazos": 1,
+        "estado": "sin_verificar",
+        "verificado": null,
+        "notas": "Semilla de prueba. Senderos internos, entre la Biblioteca y la cafetería, y junto a los auditorios. Se puede borrar."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -76.5348655,
+          3.3720605
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "S-017",
+        "tipo": "peatonal",
+        "brazos": 1,
+        "estado": "sin_verificar",
+        "verificado": null,
+        "notas": "Semilla de prueba. Senderos internos, entre la Biblioteca y la cafetería, y junto a los auditorios. Se puede borrar."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -76.5348799,
+          3.3719173
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "S-018",
+        "tipo": "peatonal",
+        "brazos": 1,
+        "estado": "sin_verificar",
+        "verificado": null,
+        "notas": "Semilla de prueba. Senderos internos, entre la Biblioteca y la cafetería, y junto a los auditorios. Se puede borrar."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -76.5348552,
+          3.3717763
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "S-019",
+        "tipo": "peatonal",
+        "brazos": 1,
+        "estado": "sin_verificar",
+        "verificado": null,
+        "notas": "Semilla de prueba. Senderos internos, entre la Biblioteca y la cafetería, y junto a los auditorios. Se puede borrar."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -76.5348249,
+          3.3716357
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "S-020",
+        "tipo": "peatonal",
+        "brazos": 1,
+        "estado": "sin_verificar",
+        "verificado": null,
+        "notas": "Semilla de prueba. Senderos internos, entre la Biblioteca y la cafetería, y junto a los auditorios. Se puede borrar."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -76.5347757,
+          3.371504
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "S-021",
+        "tipo": "peatonal",
+        "brazos": 1,
+        "estado": "sin_verificar",
+        "verificado": null,
+        "notas": "Semilla de prueba. Senderos internos, entre la Biblioteca y la cafetería, y junto a los auditorios. Se puede borrar."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -76.5347024,
+          3.3713818
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "S-022",
+        "tipo": "peatonal",
+        "brazos": 1,
+        "estado": "sin_verificar",
+        "verificado": null,
+        "notas": "Semilla de prueba. Senderos internos, entre la Biblioteca y la cafetería, y junto a los auditorios. Se puede borrar."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -76.5348259,
+          3.3713993
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "S-023",
+        "tipo": "peatonal",
+        "brazos": 1,
+        "estado": "sin_verificar",
+        "verificado": null,
+        "notas": "Semilla de prueba. Senderos internos, entre la Biblioteca y la cafetería, y junto a los auditorios. Se puede borrar."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -76.534962,
+          3.3714467
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "S-024",
+        "tipo": "peatonal",
+        "brazos": 1,
+        "estado": "sin_verificar",
+        "verificado": null,
+        "notas": "Semilla de prueba. Senderos internos, entre la Biblioteca y la cafetería, y junto a los auditorios. Se puede borrar."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -76.535098,
+          3.3714942
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "S-025",
+        "tipo": "peatonal",
+        "brazos": 1,
+        "estado": "sin_verificar",
+        "verificado": null,
+        "notas": "Semilla de prueba. Senderos internos, entre la Biblioteca y la cafetería, y junto a los auditorios. Se puede borrar."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -76.5352128,
+          3.3715342
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "S-026",
+        "tipo": "peatonal",
+        "brazos": 1,
+        "estado": "sin_verificar",
+        "verificado": null,
+        "notas": "Semilla de prueba. Senderos internos, entre la Biblioteca y la cafetería, y junto a los auditorios. Se puede borrar."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -76.5353405,
+          3.3714675
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "S-027",
+        "tipo": "peatonal",
+        "brazos": 1,
+        "estado": "sin_verificar",
+        "verificado": null,
+        "notas": "Semilla de prueba. Senderos internos, entre la Biblioteca y la cafetería, y junto a los auditorios. Se puede borrar."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -76.5354683,
+          3.3714008
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "S-028",
+        "tipo": "peatonal",
+        "brazos": 1,
+        "estado": "sin_verificar",
+        "verificado": null,
+        "notas": "Semilla de prueba. Senderos internos, entre la Biblioteca y la cafetería, y junto a los auditorios. Se puede borrar."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -76.535596,
+          3.3713342
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "S-029",
+        "tipo": "peatonal",
+        "brazos": 1,
+        "estado": "sin_verificar",
+        "verificado": null,
+        "notas": "Semilla de prueba. Senderos internos, entre la Biblioteca y la cafetería, y junto a los auditorios. Se puede borrar."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -76.5356916,
+          3.3714446
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "S-030",
+        "tipo": "peatonal",
+        "brazos": 1,
+        "estado": "sin_verificar",
+        "verificado": null,
+        "notas": "Semilla de prueba. Senderos internos, entre la Biblioteca y la cafetería, y junto a los auditorios. Se puede borrar."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -76.5358049,
+          3.3716209
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "S-031",
+        "tipo": "peatonal",
+        "brazos": 1,
+        "estado": "dañado",
+        "verificado": null,
+        "notas": "Semilla de prueba, dañado a propósito: no debe iluminar. Sendero interno del campus."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -76.5359529,
+          3.3718678
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "S-032",
+        "tipo": "peatonal",
+        "brazos": 1,
+        "estado": "sin_verificar",
+        "verificado": null,
+        "notas": "Semilla de prueba. Senderos internos, entre la Biblioteca y la cafetería, y junto a los auditorios. Se puede borrar."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -76.5360058,
+          3.3720995
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "S-033",
+        "tipo": "peatonal",
+        "brazos": 1,
+        "estado": "sin_verificar",
+        "verificado": null,
+        "notas": "Semilla de prueba. Senderos internos, entre la Biblioteca y la cafetería, y junto a los auditorios. Se puede borrar."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -76.536006,
+          3.3722327
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "S-034",
+        "tipo": "peatonal",
+        "brazos": 1,
+        "estado": "sin_verificar",
+        "verificado": null,
+        "notas": "Semilla de prueba. Senderos internos, entre la Biblioteca y la cafetería, y junto a los auditorios. Se puede borrar."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -76.5360088,
+          3.3723766
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "S-035",
+        "tipo": "peatonal",
+        "brazos": 1,
+        "estado": "sin_verificar",
+        "verificado": null,
+        "notas": "Semilla de prueba. Senderos internos, entre la Biblioteca y la cafetería, y junto a los auditorios. Se puede borrar."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -76.5359595,
+          3.3725083
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "S-036",
+        "tipo": "peatonal",
+        "brazos": 1,
+        "estado": "sin_verificar",
+        "verificado": null,
+        "notas": "Semilla de prueba. Senderos internos, entre la Biblioteca y la cafetería, y junto a los auditorios. Se puede borrar."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -76.535894,
+          3.3726365
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "S-037",
+        "tipo": "peatonal",
+        "brazos": 1,
+        "estado": "sin_verificar",
+        "verificado": null,
+        "notas": "Semilla de prueba. Senderos internos, entre la Biblioteca y la cafetería, y junto a los auditorios. Se puede borrar."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -76.5358286,
+          3.3727647
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "S-038",
+        "tipo": "peatonal",
+        "brazos": 1,
+        "estado": "sin_verificar",
+        "verificado": null,
+        "notas": "Semilla de prueba. Senderos internos, entre la Biblioteca y la cafetería, y junto a los auditorios. Se puede borrar."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -76.5356628,
+          3.3728098
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "S-039",
+        "tipo": "peatonal",
+        "brazos": 1,
+        "estado": "sin_verificar",
+        "verificado": null,
+        "notas": "Semilla de prueba. Senderos internos, entre la Biblioteca y la cafetería, y junto a los auditorios. Se puede borrar."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -76.5354777,
+          3.3728132
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "S-040",
+        "tipo": "peatonal",
+        "brazos": 1,
+        "estado": "sin_verificar",
+        "verificado": null,
+        "notas": "Semilla de prueba. Senderos internos, entre la Biblioteca y la cafetería, y junto a los auditorios. Se puede borrar."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -76.5331728,
+          3.3757474
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "S-041",
+        "tipo": "peatonal",
+        "brazos": 1,
+        "estado": "sin_verificar",
+        "verificado": null,
+        "notas": "Semilla de prueba. Senderos internos, entre la Biblioteca y la cafetería, y junto a los auditorios. Se puede borrar."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -76.5331148,
+          3.3756157
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "S-042",
+        "tipo": "peatonal",
+        "brazos": 1,
+        "estado": "sin_verificar",
+        "verificado": null,
+        "notas": "Semilla de prueba. Senderos internos, entre la Biblioteca y la cafetería, y junto a los auditorios. Se puede borrar."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -76.5331085,
+          3.3754726
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "S-043",
+        "tipo": "peatonal",
+        "brazos": 1,
+        "estado": "sin_verificar",
+        "verificado": null,
+        "notas": "Semilla de prueba. Senderos internos, entre la Biblioteca y la cafetería, y junto a los auditorios. Se puede borrar."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -76.5331056,
+          3.3753287
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "S-044",
+        "tipo": "peatonal",
+        "brazos": 1,
+        "estado": "sin_verificar",
+        "verificado": null,
+        "notas": "Semilla de prueba. Senderos internos, entre la Biblioteca y la cafetería, y junto a los auditorios. Se puede borrar."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -76.5331028,
+          3.3751848
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "S-045",
+        "tipo": "peatonal",
+        "brazos": 1,
+        "estado": "sin_verificar",
+        "verificado": null,
+        "notas": "Semilla de prueba. Senderos internos, entre la Biblioteca y la cafetería, y junto a los auditorios. Se puede borrar."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -76.5331011,
+          3.3751017
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "S-046",
+        "tipo": "peatonal",
+        "brazos": 1,
+        "estado": "sin_verificar",
+        "verificado": null,
+        "notas": "Semilla de prueba. Senderos internos, entre la Biblioteca y la cafetería, y junto a los auditorios. Se puede borrar."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -76.532957,
+          3.3751028
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "S-047",
+        "tipo": "peatonal",
+        "brazos": 1,
+        "estado": "sin_verificar",
+        "verificado": null,
+        "notas": "Semilla de prueba. Senderos internos, entre la Biblioteca y la cafetería, y junto a los auditorios. Se puede borrar."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -76.5328128,
+          3.3751039
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "S-048",
+        "tipo": "peatonal",
+        "brazos": 1,
+        "estado": "sin_verificar",
+        "verificado": null,
+        "notas": "Semilla de prueba. Senderos internos, entre la Biblioteca y la cafetería, y junto a los auditorios. Se puede borrar."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -76.5327398,
+          3.3751045
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "S-049",
+        "tipo": "peatonal",
+        "brazos": 1,
+        "estado": "sin_verificar",
+        "verificado": null,
+        "notas": "Semilla de prueba. Senderos internos, entre la Biblioteca y la cafetería, y junto a los auditorios. Se puede borrar."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -76.5325254,
+          3.3751049
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "S-050",
+        "tipo": "peatonal",
+        "brazos": 1,
+        "estado": "sin_verificar",
+        "verificado": null,
+        "notas": "Semilla de prueba. Senderos internos, entre la Biblioteca y la cafetería, y junto a los auditorios. Se puede borrar."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -76.5323893,
+          3.3751048
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "S-051",
+        "tipo": "peatonal",
+        "brazos": 1,
+        "estado": "sin_verificar",
+        "verificado": null,
+        "notas": "Semilla de prueba. Senderos internos, entre la Biblioteca y la cafetería, y junto a los auditorios. Se puede borrar."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -76.5323916,
+          3.3752487
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "S-052",
+        "tipo": "peatonal",
+        "brazos": 1,
+        "estado": "sin_verificar",
+        "verificado": null,
+        "notas": "Semilla de prueba. Senderos internos, entre la Biblioteca y la cafetería, y junto a los auditorios. Se puede borrar."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -76.532394,
+          3.3753925
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "S-053",
+        "tipo": "peatonal",
+        "brazos": 1,
+        "estado": "sin_verificar",
+        "verificado": null,
+        "notas": "Semilla de prueba. Senderos internos, entre la Biblioteca y la cafetería, y junto a los auditorios. Se puede borrar."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -76.5323963,
+          3.3755364
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "S-054",
+        "tipo": "peatonal",
+        "brazos": 1,
+        "estado": "sin_verificar",
+        "verificado": null,
+        "notas": "Semilla de prueba. Senderos internos, entre la Biblioteca y la cafetería, y junto a los auditorios. Se puede borrar."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -76.5323987,
+          3.3756803
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "S-055",
+        "tipo": "peatonal",
+        "brazos": 1,
+        "estado": "sin_verificar",
+        "verificado": null,
+        "notas": "Semilla de prueba. Senderos internos, entre la Biblioteca y la cafetería, y junto a los auditorios. Se puede borrar."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -76.532401,
+          3.3758242
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "S-056",
+        "tipo": "peatonal",
+        "brazos": 1,
+        "estado": "sin_verificar",
+        "verificado": null,
+        "notas": "Semilla de prueba. Senderos internos, entre la Biblioteca y la cafetería, y junto a los auditorios. Se puede borrar."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -76.532403,
+          3.3759479
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "S-057",
+        "tipo": "peatonal",
+        "brazos": 1,
+        "estado": "sin_verificar",
+        "verificado": null,
+        "notas": "Semilla de prueba. Senderos internos, entre la Biblioteca y la cafetería, y junto a los auditorios. Se puede borrar."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -76.5324027,
+          3.3760918
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "S-058",
+        "tipo": "peatonal",
+        "brazos": 1,
+        "estado": "sin_verificar",
+        "verificado": null,
+        "notas": "Semilla de prueba. Senderos internos, entre la Biblioteca y la cafetería, y junto a los auditorios. Se puede borrar."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -76.5324023,
+          3.3762357
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "S-059",
+        "tipo": "peatonal",
+        "brazos": 1,
+        "estado": "sin_verificar",
+        "verificado": null,
+        "notas": "Semilla de prueba. Senderos internos, entre la Biblioteca y la cafetería, y junto a los auditorios. Se puede borrar."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -76.532402,
+          3.3763796
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "S-060",
+        "tipo": "peatonal",
+        "brazos": 1,
+        "estado": "sin_verificar",
+        "verificado": null,
+        "notas": "Semilla de prueba. Senderos internos, entre la Biblioteca y la cafetería, y junto a los auditorios. Se puede borrar."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -76.532394,
+          3.3764713
+        ]
+      }
+    }
+  ]
+}

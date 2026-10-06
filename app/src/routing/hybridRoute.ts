@@ -12,6 +12,7 @@ import {
   spacePoint,
   type LatLng,
   type RouteResult,
+  type WalkCost,
 } from "./graph";
 import {
   fetchStreetRoute,
@@ -90,12 +91,14 @@ export function pickBestEntrance(
  * - both off campus → OpenRouteService direct
  *
  * @param viaEntrance when set (user chose a gate), street segment ends there instead of auto-picking
+ * @param walkCost solo el tramo a pie con los dos puntos dentro del campus. El resto sigue por metros.
  */
 export async function routeHybrid(
   origin: LatLng,
   destination: LatLng,
   profile: StreetProfile = "foot-walking",
   viaEntrance: LatLng | null = null,
+  walkCost: WalkCost = "short",
 ): Promise<HybridRouteResult | null> {
   if (profile === "driving-car") {
     return routeByCar(origin, destination, viaEntrance);
@@ -105,7 +108,7 @@ export async function routeHybrid(
   const destInside = pointInCampus(destination);
 
   if (originInside && destInside) {
-    const campus = routeBetweenPoints(origin, destination);
+    const campus = routeBetweenPoints(origin, destination, "walk", walkCost);
     if (!campus) return null;
     return {
       ...campus,

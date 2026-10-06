@@ -8,7 +8,6 @@ import * as Location from "expo-location";
 import edificios from "@/assets/geojson/edificios.json";
 import aristasRed from "@/assets/geojson/aristas_red.json";
 import pasillos from "@/assets/geojson/pasillos.json";
-import postes from "@/assets/geojson/postes.json";
 import espacios from "@/assets/geojson/espacios.json";
 import { BUILDING_HEIGHT_OVERRIDES, CAMPUS_BOUNDS, MOCK_CAMPUS_LOCATION } from "@/constants/map";
 import {
@@ -47,6 +46,7 @@ import {
   nodeLatLng,
   spacePoint,
   type LatLng,
+  type WalkCost,
 } from "@/routing/graph";
 import {
   formatDuration,
@@ -57,6 +57,7 @@ import {
   routeThroughPoints,
   type HybridRouteResult,
 } from "@/routing/hybridRoute";
+import { campusLampPosts } from "@/routing/lampLight";
 import type { StreetProfile } from "@/routing/openRouteService";
 import type { BuildingProperties, GeoJsonFeatureCollection } from "@/types/campus";
 import { MapHeader } from "@/components/MapHeader";
@@ -847,10 +848,10 @@ function buildMapHtml(initialTheme: MapTheme): string {
               colors.spaceLine
             ],
             'line-width': [
-              'case',
-              ['boolean', ['feature-state', 'selected'], false],
-              ['interpolate', ['linear'], ['zoom'], 15, 2.4, 17, 3.4, 19, 4.2],
-              ['interpolate', ['linear'], ['zoom'], 15, 1.2, 17, 1.8, 19, 2.4]
+              'interpolate', ['linear'], ['zoom'],
+              15, ['case', ['boolean', ['feature-state', 'selected'], false], 2.4, 1.2],
+              17, ['case', ['boolean', ['feature-state', 'selected'], false], 3.4, 1.8],
+              19, ['case', ['boolean', ['feature-state', 'selected'], false], 4.2, 2.4]
             ]
           }
         }, beforeId);
@@ -1287,7 +1288,10 @@ export function CampusMap() {
   const [relocatingEntranceId, setRelocatingEntranceId] = useState<string | null>(null);
   const [entranceOverrides, setEntranceOverrides] = useState<Record<string, LatLng>>({});
   const [streetProfile, setStreetProfile] = useState<StreetProfile>("foot-walking");
+  const [nightChoiceOpen, setNightChoiceOpen] = useState(false);
   const { mode: themeMode, theme: mapTheme, initialTheme, setMode: setThemeMode } = useMapTheme();
+  const [appliedTheme, setAppliedTheme] = useState(mapTheme);
+  const [dayRecalc, setDayRecalc] = useState<{ from: LatLng; to: LatLng } | null>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [themeBusy, setThemeBusy] = useState(false);
   const [themeMenuOpen, setThemeMenuOpen] = useState(false);
@@ -1376,7 +1380,7 @@ export function CampusMap() {
   );
   const paths = useMemo(() => aristasRed, []);
   const passages = useMemo(() => pasillos, []);
-  const lamps = useMemo(() => postes, []);
+  const lamps = useMemo(() => campusLampPosts(), []);
   const spaces = useMemo(() => espacios, []);
   const destinations = useMemo(
     () => listDestinations(edificios as unknown as GeoJsonFeatureCollection, catalog),
@@ -1491,6 +1495,7 @@ export function CampusMap() {
       to: LatLng,
       viaEntrance: LatLng | null = null,
       profile: StreetProfile = streetProfileRef.current,
+      walkCost?: WalkCost,
     ) => {
       const sameCampusNode =
         pointInCampus(from) &&
@@ -1498,12 +1503,33 @@ export function CampusMap() {
         nearestNodeId(from) != null &&
         nearestNodeId(from) === nearestNodeId(to);
       if (sameCampusNode) {
+        setNightChoiceOpen(false);
         setRoute(null);
         setRouteError("Elige dos lugares distintos");
         syncMarkers(from, to);
         clearRouteLine();
         return;
       }
+
+      const askNightChoice =
+        walkCost == null &&
+        mapTheme === "night" &&
+        profile === "foot-walking" &&
+        pointInCampus(from) &&
+        pointInCampus(to);
+      if (askNightChoice) {
+        routeRequestRef.current += 1;
+        setNightChoiceOpen(true);
+        setPreset(null);
+        setRoute(null);
+        setRouteError(null);
+        setRouting(false);
+        setStatus("");
+        syncMarkers(from, to);
+        clearRouteLine();
+        return;
+      }
+      setNightChoiceOpen(false);
 
       const requestId = ++routeRequestRef.current;
       setPreset(null);
@@ -1514,7 +1540,7 @@ export function CampusMap() {
       );
 
       try {
-        const result = await routeHybrid(from, to, profile, viaEntrance);
+        const result = await routeHybrid(from, to, profile, viaEntrance, walkCost ?? "short");
         if (requestId !== routeRequestRef.current) return;
         if (!result) {
           setRoute(null);
@@ -1547,8 +1573,42 @@ export function CampusMap() {
         if (requestId === routeRequestRef.current) setRouting(false);
       }
     },
-    [syncMarkers, paintRoute, clearRouteLine],
+    [syncMarkers, paintRoute, clearRouteLine, mapTheme],
   );
+
+  if (mapTheme !== appliedTheme) {
+    setAppliedTheme(mapTheme);
+    const campusWalk =
+      Boolean(origin && destination) &&
+      !preset &&
+      streetProfile === "foot-walking" &&
+      pointInCampus(origin!) &&
+      pointInCampus(destination!);
+    if (campusWalk && mapTheme === "night") {
+      setNightChoiceOpen(true);
+      setRoute(null);
+      setRouteError(null);
+      setRouting(false);
+      setStatus("");
+    } else if (campusWalk && mapTheme === "day" && origin && destination) {
+      setNightChoiceOpen(false);
+      setDayRecalc({ from: origin, to: destination });
+    }
+  }
+
+  const handledDayRecalc = useRef<{ from: LatLng; to: LatLng } | null>(null);
+  useEffect(() => {
+    if (!dayRecalc || handledDayRecalc.current === dayRecalc) return;
+    handledDayRecalc.current = dayRecalc;
+    void runRoute(dayRecalc.from, dayRecalc.to, null, "foot-walking", "short");
+  }, [dayRecalc, runRoute]);
+
+  useEffect(() => {
+    if (!nightChoiceOpen || !origin || !destination) return;
+    routeRequestRef.current += 1;
+    clearRouteLine();
+    syncMarkers(origin, destination);
+  }, [nightChoiceOpen, origin, destination, clearRouteLine, syncMarkers]);
 
   const changeStreetProfile = useCallback(
     (next: StreetProfile) => {
@@ -1562,6 +1622,7 @@ export function CampusMap() {
 
   const runPreset = useCallback(
     (presetRoute: PresetRoute, fromPoint?: LatLng, fromName?: string) => {
+      setNightChoiceOpen(false);
       const start = fromPoint ?? origin;
       const startName = fromPoint ? (fromName ?? "Origen") : originName;
       if (!start) {
@@ -1627,6 +1688,7 @@ export function CampusMap() {
       setOriginName(startName ?? "Origen");
       setDestination(last.point);
       setDestinationName(last.name);
+      setNightChoiceOpen(false);
       setPreset({ name: presetRoute.name, stops: labeled.map(({ letter, name }) => ({ letter, name })) });
       activeSlotRef.current = "destination";
       setActiveSlot("destination");
@@ -1700,6 +1762,7 @@ export function CampusMap() {
     setSelected(null);
     setPendingPreset(null);
     setPickingSlot(null);
+    setNightChoiceOpen(false);
     inject(`if (typeof window.clearRoute === 'function') window.clearRoute();`);
     inject(`if (typeof window.setEntranceMarkers === 'function') window.setEntranceMarkers([]);`);
   }, [inject]);
@@ -1750,6 +1813,7 @@ export function CampusMap() {
         return;
       }
 
+      setNightChoiceOpen(false);
       setRoute(null);
       setRouteError(null);
       const nextSlot: RouteSlot = nextOrigin ? "destination" : "origin";
@@ -1771,6 +1835,7 @@ export function CampusMap() {
       setDestination(nextDestination);
       setRoute(null);
       setRouteError(null);
+      setNightChoiceOpen(false);
       setPickingSlot(slot);
       activeSlotRef.current = slot;
       setActiveSlot(slot);
@@ -1792,6 +1857,7 @@ export function CampusMap() {
       void runRoute(nextOrigin, nextDestination);
       return;
     }
+    setNightChoiceOpen(false);
     setRoute(null);
     setRouteError(null);
     const nextSlot: RouteSlot = nextOrigin ? "destination" : "origin";
@@ -2532,15 +2598,30 @@ export function CampusMap() {
               ? null
               : route.detail
                 ? route.detail
-                : route.mode === "campus"
-                  ? "a pie"
-                  : [
-                      route.profile === "driving-car" ? "en carro" : "a pie",
-                      route.entrance ? `vía ${route.entrance.street}` : null,
-                    ]
-                      .filter(Boolean)
-                      .join(" · ")
+                : [
+                    mapTheme === "night" &&
+                    streetProfile === "foot-walking" &&
+                    route.mode === "campus" &&
+                    route.darkM != null
+                      ? route.darkM < 1
+                        ? "toda iluminada"
+                        : `${formatDistance(route.darkM)} sin luz`
+                      : null,
+                    route.mode === "campus"
+                      ? "a pie"
+                      : route.profile === "driving-car"
+                        ? "en carro"
+                        : "a pie",
+                    route.mode === "campus" ? null : route.entrance ? `vía ${route.entrance.street}` : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")
           }
+          nightChoiceOpen={nightChoiceOpen}
+          onChooseWalkCost={(cost) => {
+            if (!origin || !destination) return;
+            void runRoute(origin, destination, null, streetProfileRef.current, cost);
+          }}
           error={routeError}
           showGoToCampus={Boolean(userLocation && userOutsideCampus && !routing)}
           campusPickerOpen={campusPickerOpen}
