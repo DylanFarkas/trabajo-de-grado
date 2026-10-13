@@ -1,13 +1,22 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ComponentProps } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useAuth } from "@/auth";
+import {
+  BATHROOM_AUDIENCE_LABELS,
+  bathroomsForCode,
+  countByAudience,
+  groupBathroomsByFloor,
+  joinList,
+  type BathroomAudienceCount,
+} from "@/bathrooms";
 import { ContributionComposer } from "@/components/ContributionComposer";
 import { fetchPublishedInfo, formatDate, submitInfo, type PublishedInfo } from "@/contributions";
 import { useMapPanel, type PlaceDetailsTarget } from "@/map-panel";
 import type { CatalogTone } from "@/places";
+import type { BathroomAudience, BathroomUnit } from "@/types/campus";
 
 const TONE_COLORS: Record<CatalogTone | "none", { soft: string; strong: string }> = {
   food: { soft: "#f6efe4", strong: "#9a6a2f" },
@@ -103,6 +112,107 @@ function InfoCard({ entry }: { entry: PublishedInfo }) {
       <View className="mt-4 flex-row items-center">
         <MaterialIcons name="verified" size={14} color="#1f8a4c" />
         <Text className="ml-1 font-sans text-[12px] text-[#8e8e93]">Revisado · aportado el {formatDate(entry.createdAt)}</Text>
+      </View>
+    </View>
+  );
+}
+
+const AUDIENCE_STYLES: Record<
+  BathroomAudience,
+  { icon: ComponentProps<typeof MaterialIcons>["name"]; soft: string; strong: string }
+> = {
+  mujeres: { icon: "woman", soft: "#fcebf1", strong: "#a8385f" },
+  hombres: { icon: "man", soft: "#e6eef8", strong: "#2c5c8f" },
+  mixto: { icon: "wc", soft: "#eee9f6", strong: "#5f4790" },
+};
+
+function audienceKey(units: BathroomUnit[]) {
+  return countByAudience(units)
+    .map((entry) => `${entry.publico}:${entry.count}`)
+    .join("|");
+}
+
+function describeAudiences(tally: BathroomAudienceCount[]) {
+  const withCounts = tally.some((entry) => entry.count > 1);
+  const text = joinList(
+    tally.map((entry) => {
+      const label = BATHROOM_AUDIENCE_LABELS[entry.publico].toLowerCase();
+      if (!withCounts) return label;
+      if (entry.publico === "mixto") return entry.count === 1 ? "1 mixto" : `${entry.count} mixtos`;
+      return `${entry.count} de ${label}`;
+    }),
+  );
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+function AudienceIcons({ tally }: { tally: BathroomAudienceCount[] }) {
+  return (
+    <View className="flex-row">
+      {tally.map((entry, index) => {
+        const style = AUDIENCE_STYLES[entry.publico];
+        return (
+          <View
+            key={entry.publico}
+            className="size-9 items-center justify-center rounded-full border-2 border-white"
+            style={{ backgroundColor: style.soft, marginLeft: index === 0 ? 0 : -10, zIndex: tally.length - index }}
+          >
+            <MaterialIcons name={style.icon} size={18} color={style.strong} />
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
+type BathroomRow = { key: string; title: string; subtitle: string; tally: BathroomAudienceCount[] };
+
+function BathroomSection({ code }: { code: string }) {
+  const units = bathroomsForCode(code);
+  if (units.length === 0) return null;
+  const groups = groupBathroomsByFloor(units);
+  const sameOnEveryFloor = groups.every((group) => audienceKey(group.units) === audienceKey(groups[0].units));
+
+  const rows: BathroomRow[] = sameOnEveryFloor
+    ? [
+        {
+          key: "all",
+          title: groups.length === 1 ? `Piso ${groups[0].piso}` : `Pisos ${joinList(groups.map((group) => group.piso))}`,
+          subtitle: `${describeAudiences(countByAudience(groups[0].units))}${groups.length > 1 ? " en cada piso" : ""}`,
+          tally: countByAudience(groups[0].units),
+        },
+      ]
+    : [...groups].reverse().map((group) => {
+        const tally = countByAudience(group.units);
+        return { key: String(group.piso), title: `Piso ${group.piso}`, subtitle: describeAudiences(tally), tally };
+      });
+
+  return (
+    <View>
+      <SectionHeader title="Baños" count={units.length} />
+      <View
+        className="rounded-3xl border border-[#f0f0f2] bg-white px-4"
+        style={{
+          shadowColor: "#1c1c28",
+          shadowOpacity: 0.04,
+          shadowRadius: 12,
+          shadowOffset: { width: 0, height: 4 },
+          elevation: 1,
+        }}
+      >
+        {rows.map((row, index) => (
+          <View
+            key={row.key}
+            accessible
+            accessibilityLabel={`${row.title}: ${row.subtitle.toLowerCase()}`}
+            className={`flex-row items-center py-3.5 ${index > 0 ? "border-t border-[#f0f0f2]" : ""}`}
+          >
+            <View className="min-w-0 flex-1 pr-3">
+              <Text className="text-[15px] font-bold text-[#111111]">{row.title}</Text>
+              <Text className="mt-0.5 font-sans text-[13px] text-[#6e6e73]">{row.subtitle}</Text>
+            </View>
+            <AudienceIcons tally={row.tally} />
+          </View>
+        ))}
       </View>
     </View>
   );
@@ -213,6 +323,8 @@ export function PlaceDetailsScreen({ target }: { target: PlaceDetailsTarget }) {
         </View>
 
         {target.description ? <AboutSection text={target.description} accent={colors.strong} /> : null}
+
+        <BathroomSection code={target.code} />
 
         <SectionHeader title="Información del espacio" count={count} />
         {info === null ? (

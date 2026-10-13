@@ -311,6 +311,139 @@
           ]
         ]
       }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "bano-e26",
+        "nombre": "Baños Álvaro Escobar Navia",
+        "tipo": "bano",
+        "edificio": "E26",
+        "notas": null,
+        "etiqueta": "Baños",
+        "centro": [-76.532661, 3.376613],
+        "banos": [
+          { "piso": 1, "publico": "mujeres" },
+          { "piso": 1, "publico": "hombres" },
+          { "piso": 2, "publico": "mujeres" },
+          { "piso": 2, "publico": "hombres" }
+        ]
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-76.532661, 3.376613]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "bici-e20",
+        "nombre": "Parqueadero de bicicletas E20",
+        "tipo": "parqueadero_bici",
+        "edificio": null,
+        "notas": null,
+        "etiqueta": "Bici",
+        "centro": [-76.533575, 3.374992]
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-76.5336738, 3.3749901],
+            [-76.5336728, 3.3749446],
+            [-76.5334032, 3.3749503],
+            [-76.5334042, 3.3749958],
+            [-76.5336738, 3.3749901]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "bici-b13",
+        "nombre": "Parqueadero de bicicletas B13",
+        "tipo": "parqueadero_bici",
+        "edificio": null,
+        "notas": null,
+        "etiqueta": "Bici",
+        "centro": [-76.529697, 3.375545]
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-76.529697, 3.375545]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "bici-e20-este",
+        "nombre": "Parqueadero de bicicletas E20 este",
+        "tipo": "parqueadero_bici",
+        "edificio": null,
+        "notas": null,
+        "etiqueta": "Bici",
+        "centro": [-76.533632, 3.376300]
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-76.5336545, 3.3762593],
+            [-76.5336095, 3.3762593],
+            [-76.5336095, 3.3763407],
+            [-76.5336545, 3.3763407],
+            [-76.5336545, 3.3762593]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "bici-plazoleta",
+        "nombre": "Parqueadero de bicicletas Plazoleta de Ingeniería",
+        "tipo": "parqueadero_bici",
+        "edificio": null,
+        "notas": null,
+        "etiqueta": "Bici",
+        "centro": [-76.532642, 3.376091]
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-76.5327044, 3.3760387],
+            [-76.5325893, 3.3761532],
+            [-76.5325627, 3.3761263],
+            [-76.5326778, 3.3760117],
+            [-76.5327044, 3.3760387]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "bano-b13",
+        "nombre": "Baños EISC",
+        "tipo": "bano",
+        "edificio": "B13",
+        "notas": null,
+        "etiqueta": "Baños",
+        "centro": [-76.5298, 3.37566],
+        "banos": [
+          { "piso": 1, "publico": "mujeres" },
+          { "piso": 1, "publico": "hombres" },
+          { "piso": 2, "publico": "mujeres" },
+          { "piso": 2, "publico": "hombres" },
+          { "piso": 2, "publico": "hombres" }
+        ]
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-76.5298, 3.37566]
+      }
     }
   ]
 }

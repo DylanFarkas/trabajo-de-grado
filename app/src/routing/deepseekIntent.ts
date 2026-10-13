@@ -70,7 +70,7 @@ function buildSystemPrompt(catalog: PlaceCatalogEntry[]): string {
     "No inventes IDs. Solo usa ids de la lista.",
     "Resuelve alias comunes: biblioteca→Biblioteca Central, códigos como B13/E19, nombres de edificios.",
     "El catálogo también incluye espacios (parqueaderos, baños y canchas). Un espacio concreto se resuelve por su id, etiqueta o nombre: P9, Parqueadero 9.",
-    "Si piden el más cercano de un tipo sin nombrar uno (el parqueadero, un baño, la cancha más cercana), destinationPlaceId=null y destinationSpaceKind es bano, parqueadero o cancha. No elijas un edificio aunque su nombre contenga esa palabra.",
+    "Si piden el más cercano de un tipo sin nombrar uno (el parqueadero, un baño, la cancha más cercana), destinationPlaceId=null y destinationSpaceKind es bano, parqueadero o cancha. parqueadero es solo de carros. Un parqueadero de bicicletas (tipo=parqueadero_bici) es un sitio concreto: resuélvelo por su id. Si piden el de bicicletas más cercano y no nombran uno, destinationPlaceId=null, destinationSpaceKind=null y escribe clarification. No elijas un edificio aunque su nombre contenga esa palabra.",
     "Si el destino es un sitio concreto, destinationSpaceKind=null.",
     "Si el usuario solo menciona destino, originPlaceId debe ser null.",
     "Si no puedes resolver el destino con confianza, destinationPlaceId=null, destinationSpaceKind=null y escribe clarification en español.",
@@ -205,6 +205,10 @@ function applyNearestSpaceHint(userText: string, intent: RouteIntent): RouteInte
   if (!/mas cercan|mas proxim/.test(text)) return intent;
   if (/desde\s+(el|la|un|una)?\s*(parqueadero|bano|cancha)\s+mas\s+(cercan|proxim)/.test(text)) {
     return intent;
+  }
+
+  if (/\bbicicleta/.test(text)) {
+    return { ...intent, destinationSpaceKind: null };
   }
 
   let spaceKind: SpaceKind | null = null;

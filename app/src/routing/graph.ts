@@ -348,7 +348,7 @@ function splicePassages(nodes: Map<number, GraphNode>, raw: RawEdge[]) {
   }
 }
 
-const SPACE_KINDS = new Set<SpaceKind>(["bano", "parqueadero", "cancha"]);
+const SPACE_KINDS = new Set<SpaceKind>(["bano", "parqueadero", "parqueadero_bici", "cancha"]);
 const SPACE_ID = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;
 
 type SpaceNode = {

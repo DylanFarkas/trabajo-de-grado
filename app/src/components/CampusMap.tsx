@@ -32,6 +32,7 @@ import {
   spaceKindLabel,
   type CampusDestination,
 } from "@/destinations";
+import { bathroomSummary } from "@/bathrooms";
 import { nearestSpace } from "@/spaces";
 import { readCachedCatalog, refreshCatalog } from "@/catalog";
 import {
@@ -102,6 +103,24 @@ function pointForDestination(destination: CampusDestination, toward?: LatLng | n
     return (destination.spaceId ? spacePoint(destination.spaceId) : null) ?? destination.point;
   }
   return pointForBuilding(destination.building, destination.point, toward);
+}
+
+/** Con las dos puntas, cada edificio usa la puerta que acorta el recorrido. */
+function doorsForEnds(
+  origin: LatLng | null,
+  destination: LatLng | null,
+  originPlace: CampusDestination | null,
+  destinationPlace: CampusDestination | null,
+): { origin: LatLng | null; destination: LatLng | null } {
+  let nextOrigin = origin;
+  let nextDestination = destination;
+  if (nextOrigin && nextDestination && destinationPlace?.kind === "building") {
+    nextDestination = pointForDestination(destinationPlace, nextOrigin);
+  }
+  if (nextOrigin && nextDestination && originPlace?.kind === "building") {
+    nextOrigin = pointForDestination(originPlace, nextDestination);
+  }
+  return { origin: nextOrigin, destination: nextDestination };
 }
 
 function withExtrusionHeight(
@@ -782,7 +801,7 @@ function buildMapHtml(initialTheme: MapTheme): string {
     }
 
     var CAMPUS_LAYERS = [
-      'buildings-labels', 'espacios-label', 'lamp-bulb', 'lamp-3d', 'buildings-selected', 'buildings-3d',
+      'bicis-icon', 'banos-icon', 'buildings-labels', 'espacios-label', 'lamp-bulb', 'lamp-3d', 'buildings-selected', 'buildings-3d',
       'buildings-footprint', 'buildings-hit', 'campus-building-3d',
       'lamp-core', 'lamp-glow', 'lamp-pool',
       'steps-line', 'foot-line', 'foot-casing', 'service-line', 'service-casing',
@@ -804,6 +823,67 @@ function buildMapHtml(initialTheme: MapTheme): string {
         });
       });
       map.setLight(colors.light);
+      hideBasemapToilets();
+    }
+
+    /** Los íconos de baño del mapa base no coinciden con los nuestros. El estilo se recarga entero, así que el filtro no se acumula. */
+    function hideBasemapToilets() {
+      if (window.__hidBasemapToilets) return;
+      var style = map.getStyle();
+      if (!style || !style.layers) return;
+      window.__hidBasemapToilets = true;
+      var dropToilet = ['!=', ['coalesce', ['get', 'class'], ''], 'toilet'];
+      style.layers.forEach(function (layer) {
+        if (layer['source-layer'] !== 'poi') return;
+        var current = null;
+        try { current = map.getFilter(layer.id); } catch (e) { return; }
+        try {
+          map.setFilter(layer.id, current ? ['all', current, dropToilet] : dropToilet);
+        } catch (e) {}
+      });
+    }
+
+    /** Material Icons round, 24x24. El mismo set que Icon (@expo/vector-icons/MaterialIcons). */
+    var WC_GLYPH = 'M5.5 21v-6.5H5c-.55 0-1-.45-1-1V9c0-1.1.9-2 2-2h3c1.1 0 2 .9 2 2v4.5c0 .55-.45 1-1 1h-.5V21c0 .55-.45 1-1 1h-2c-.55 0-1-.45-1-1zM18 21v-5h1.61c.68 0 1.16-.67.95-1.32l-2.1-6.31C18.18 7.55 17.42 7 16.56 7h-.12c-.86 0-1.63.55-1.9 1.37l-2.1 6.31c-.22.65.26 1.32.95 1.32H15v5c0 .55.45 1 1 1h1c.55 0 1-.45 1-1zM7.5 6c1.11 0 2-.89 2-2s-.89-2-2-2-2 .89-2 2 .89 2 2 2zm9 0c1.11 0 2-.89 2-2s-.89-2-2-2-2 .89-2 2 .89 2 2 2z';
+    var BIKE_GLYPH = 'M15.5 5.5c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zM5 12c-2.8 0-5 2.2-5 5s2.2 5 5 5 5-2.2 5-5-2.2-5-5-5zm0 8.5c-1.9 0-3.5-1.6-3.5-3.5s1.6-3.5 3.5-3.5 3.5 1.6 3.5 3.5-1.6 3.5-3.5 3.5zm5.8-10l2.4-2.4.8.8c1.06 1.06 2.38 1.78 3.96 2.02.6.09 1.14-.39 1.14-1 0-.49-.37-.91-.85-.99-1.11-.18-2.02-.71-2.75-1.43l-1.9-1.9c-.5-.4-1-.6-1.6-.6s-1.1.2-1.4.6L7.8 8.4c-.4.4-.6.9-.6 1.4 0 .6.2 1.1.6 1.4L11 14v4c0 .55.45 1 1 1s1-.45 1-1v-4.4c0-.52-.2-1.01-.55-1.38L10.8 10.5zM19 12c-2.8 0-5 2.2-5 5s2.2 5 5 5 5-2.2 5-5-2.2-5-5-5zm0 8.5c-1.9 0-3.5-1.6-3.5-3.5s1.6-3.5 3.5-3.5 3.5 1.6 3.5 3.5-1.6 3.5-3.5 3.5z';
+
+    /** Circulo azul con el glifo en blanco. El mapa es un canvas y no puede montar el componente Icon. */
+    function ensureMarkIcon(imageId, glyph, scale) {
+      if (map.hasImage(imageId)) return;
+      var size = 160;
+      var cx = 80;
+      var cy = 76;
+      var canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      var ctx = canvas.getContext('2d');
+
+      ctx.save();
+      ctx.shadowColor = 'rgba(15, 23, 42, 0.32)';
+      ctx.shadowBlur = 16;
+      ctx.shadowOffsetY = 6;
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(cx, cy, 58, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      var fill = ctx.createLinearGradient(0, cy - 50, 0, cy + 50);
+      fill.addColorStop(0, '#3a9bf4');
+      fill.addColorStop(1, '#1673d6');
+      ctx.fillStyle = fill;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 50, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.save();
+      ctx.translate(cx - 12 * scale, cy - 12 * scale);
+      ctx.scale(scale, scale);
+      ctx.fillStyle = '#ffffff';
+      ctx.fill(new Path2D(glyph));
+      ctx.restore();
+
+      map.addImage(imageId, ctx.getImageData(0, 0, size, size), { pixelRatio: 4 });
     }
 
     function addCampusLayers() {
@@ -857,6 +937,7 @@ function buildMapHtml(initialTheme: MapTheme): string {
         }, beforeId);
         map.addLayer({
           id: 'espacios-label', type: 'symbol', source: 'espacios',
+          filter: ['match', ['get', 'tipo'], ['bano', 'parqueadero_bici'], false, true],
           minzoom: 16,
           layout: {
             'text-field': ['coalesce', ['get', 'etiqueta'], ['get', 'nombre'], ''],
@@ -1141,6 +1222,30 @@ function buildMapHtml(initialTheme: MapTheme): string {
         });
       }
 
+      if (map.getSource('espacios')) {
+        ensureMarkIcon('bano-mark', WC_GLYPH, 3);
+        ensureMarkIcon('bici-mark', BIKE_GLYPH, 2.6);
+        var spaceIconLayout = {
+          'icon-size': ['interpolate', ['linear'], ['zoom'], 15.6, 0.8, 17, 0.95, 19, 1.1],
+          'icon-allow-overlap': true,
+          'icon-ignore-placement': true,
+          'icon-anchor': 'center',
+          'icon-pitch-alignment': 'viewport'
+        };
+        map.addLayer({
+          id: 'banos-icon', type: 'symbol', source: 'espacios',
+          filter: ['==', ['get', 'tipo'], 'bano'],
+          minzoom: 15.6,
+          layout: Object.assign({ 'icon-image': 'bano-mark' }, spaceIconLayout)
+        });
+        map.addLayer({
+          id: 'bicis-icon', type: 'symbol', source: 'espacios',
+          filter: ['==', ['get', 'tipo'], 'parqueadero_bici'],
+          minzoom: 15.6,
+          layout: Object.assign({ 'icon-image': 'bici-mark' }, spaceIconLayout)
+        });
+      }
+
       if (selectedBuildingId != null) {
         try {
           map.setFeatureState({ source: 'buildings', id: selectedBuildingId }, { selected: true });
@@ -1175,6 +1280,7 @@ function buildMapHtml(initialTheme: MapTheme): string {
     }
 
     map.on('style.load', function () {
+      window.__hidBasemapToilets = false;
       applyBaseTheme();
       addCampusLayers();
       finishThemeChange();
@@ -1234,16 +1340,37 @@ function buildMapHtml(initialTheme: MapTheme): string {
       var building = hitLayers.length
         ? map.queryRenderedFeatures(bbox, { layers: hitLayers })[0]
         : null;
+      var bathroomEdificio = null;
+      var bathroomSpaceId = null;
+      if (map.getLayer('banos-icon')) {
+        var icons = map.queryRenderedFeatures(bbox, { layers: ['banos-icon'] });
+        for (var li = 0; li < icons.length; li++) {
+          var iconProps = icons[li].properties || {};
+          if (iconProps.edificio) {
+            bathroomEdificio = String(iconProps.edificio);
+            bathroomSpaceId = iconProps.id || null;
+            break;
+          }
+        }
+      }
+      var bikeSpaceId = null;
+      if (!bathroomEdificio && map.getLayer('bicis-icon')) {
+        var bikes = map.queryRenderedFeatures(bbox, { layers: ['bicis-icon'] });
+        if (bikes.length) bikeSpaceId = (bikes[0].properties || {}).id || null;
+      }
       var space = null;
-      if (!building && map.getLayer('espacios-fill')) {
+      if (!bathroomEdificio && !bikeSpaceId && !building && map.getLayer('espacios-fill')) {
         space = map.queryRenderedFeatures(bbox, { layers: ['espacios-fill'] })[0] || null;
       }
       post({
         type: 'map-click',
         longitude: e.lngLat.lng,
         latitude: e.lngLat.lat,
-        building: building ? (building.properties || null) : null,
-        spaceId: space && space.properties ? (space.properties.id || null) : null
+        building: bathroomEdificio || bikeSpaceId ? null : (building ? (building.properties || null) : null),
+        spaceId: bathroomEdificio
+          ? bathroomSpaceId
+          : (bikeSpaceId || (space && space.properties ? (space.properties.id || null) : null)),
+        bathroomEdificio: bathroomEdificio
       });
     });
 
@@ -1300,6 +1427,8 @@ export function CampusMap() {
   const tabRef = useRef<MapPanel>(tab);
   const chromeBottomRef = useRef(220);
   const searchSlotRef = useRef<RouteSlot | null>("destination");
+  const originPlaceRef = useRef<CampusDestination | null>(null);
+  const destinationPlaceRef = useRef<CampusDestination | null>(null);
   const inTripRef = useRef(false);
   const pendingPresetRef = useRef<PresetRoute | null>(null);
   const selectedRef = useRef<SelectedPlace | null>(null);
@@ -1787,6 +1916,8 @@ export function CampusMap() {
         reportUnreachableSpace();
         return;
       }
+      if (slot === "origin") originPlaceRef.current = target;
+      else destinationPlaceRef.current = target;
       const toward = slot === "destination" ? origin : destination;
       const snapped = target ? pointForDestination(target, toward) : pointForBuilding(null, point, toward);
       setSelected(null);
@@ -1797,8 +1928,14 @@ export function CampusMap() {
         runPreset(pending, snapped, name);
         return;
       }
-      const nextOrigin = slot === "origin" ? snapped : origin;
-      const nextDestination = slot === "destination" ? snapped : destination;
+      const resolved = doorsForEnds(
+        slot === "origin" ? snapped : origin,
+        slot === "destination" ? snapped : destination,
+        originPlaceRef.current,
+        destinationPlaceRef.current,
+      );
+      const nextOrigin = resolved.origin;
+      const nextDestination = resolved.destination;
       const nextOriginName = slot === "origin" ? name : originName;
       const nextDestinationName = slot === "destination" ? name : destinationName;
 
@@ -1827,6 +1964,8 @@ export function CampusMap() {
 
   const clearSlot = useCallback(
     (slot: RouteSlot) => {
+      if (slot === "origin") originPlaceRef.current = null;
+      else destinationPlaceRef.current = null;
       const nextOrigin = slot === "origin" ? null : origin;
       const nextDestination = slot === "destination" ? null : destination;
       if (slot === "origin") setOriginName(null);
@@ -1847,8 +1986,18 @@ export function CampusMap() {
 
   const swapEndpoints = useCallback(() => {
     if (!origin && !destination) return;
-    const nextOrigin = destination;
-    const nextDestination = origin;
+    const swappedOriginPlace = destinationPlaceRef.current;
+    const swappedDestinationPlace = originPlaceRef.current;
+    originPlaceRef.current = swappedOriginPlace;
+    destinationPlaceRef.current = swappedDestinationPlace;
+    const resolved = doorsForEnds(
+      destination,
+      origin,
+      originPlaceRef.current,
+      destinationPlaceRef.current,
+    );
+    const nextOrigin = resolved.origin;
+    const nextDestination = resolved.destination;
     setOrigin(nextOrigin);
     setDestination(nextDestination);
     setOriginName(destinationName);
@@ -2289,6 +2438,7 @@ export function CampusMap() {
           latitude?: number;
           building?: BuildingProperties | null;
           spaceId?: string | null;
+          bathroomEdificio?: string | null;
         };
         if (data.type === "map-ready") {
           setStatus("Preparando campus…");
@@ -2323,11 +2473,20 @@ export function CampusMap() {
               return;
             }
             const slot = inTripRef.current && tabRef.current === "map" ? searchSlotRef.current : null;
-            const target = data.building
-              ? destinationFromBuilding(data.building, destinations, point, catalog)
-              : data.spaceId
-                ? (destinations.find((item) => item.spaceId === data.spaceId) ?? null)
+            const bathroomCode =
+              typeof data.bathroomEdificio === "string" && data.bathroomEdificio
+                ? data.bathroomEdificio
                 : null;
+            const target = bathroomCode
+              ? (destinations.find((item) => item.kind === "building" && item.placeId === bathroomCode) ??
+                (data.spaceId
+                  ? (destinations.find((item) => item.spaceId === data.spaceId) ?? null)
+                  : null))
+              : data.building
+                ? destinationFromBuilding(data.building, destinations, point, catalog)
+                : data.spaceId
+                  ? (destinations.find((item) => item.spaceId === data.spaceId) ?? null)
+                  : null;
             if (slot) {
               assignPoint(slot, point, target);
             } else if (target) {
@@ -2430,7 +2589,7 @@ export function CampusMap() {
         subtitle: selected.destination.subtitle,
         code: selected.destination.placeId,
         categories: selected.destination.categories,
-        detail: selected.destination.detail,
+        detail: bathroomSummary(selected.destination.placeId) ?? selected.destination.detail,
       }
     : null;
   const lastPlacePreview = useRef(placePreview);

@@ -31,6 +31,7 @@ export type CampusDestination = {
 const SPACE_KIND_LABELS: Record<SpaceKind, string> = {
   bano: "Baño",
   parqueadero: "Parqueadero",
+  parqueadero_bici: "Parqueadero de bicicletas",
   cancha: "Cancha",
 };
 

@@ -112,6 +112,21 @@
           865132.087130
         ]
       }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id_entrada": 8,
+        "edificio": "B13",
+        "name": "Entrada posterior B13"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          1060881.7021596115,
+          865028.451382175
+        ]
+      }
     }
   ]
 }

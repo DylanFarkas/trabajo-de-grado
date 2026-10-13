@@ -66,6 +66,7 @@ En QGIS se puede digitalizar la misma capa de puntos con snapping activo sobre `
 | id | Edificio | Puerta |
 | --- | --- | --- |
 | 1 | B13 | Fachada norte, sobre el andén. WGS84: 3.375746, -76.529748 |
+| 8 | B13 | Fachada sur, junto al parqueadero de bicicletas. WGS84: 3.375550, -76.529726 |
 | 2 | E23 | Espíritu Santo Potes, lado norte. WGS84: 3.375818, -76.532795 |
 | 3 | E26 | Álvaro Escobar Navia, lado sur. WGS84: 3.376490, -76.532663 |
 | 4 | D17 | Coliseo Alberto León Betancur, fachada este. WGS84: 3.371687, -76.533398 |

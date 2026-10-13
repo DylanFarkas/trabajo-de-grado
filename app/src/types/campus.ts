@@ -44,12 +44,22 @@ export type LampPostKind = "vial" | "peatonal";
 export type LampPostStatus = "funciona" | "dañado" | "sin_verificar";
 
 /** Tipo fijo del espacio. La ruta “más cercana” filtra por esto, no por una categoría del admin. */
-export type SpaceKind = "bano" | "parqueadero" | "cancha";
+export type SpaceKind = "bano" | "parqueadero" | "parqueadero_bici" | "cancha";
+
+/** Público de un baño dentro de un edificio. */
+export type BathroomAudience = "hombres" | "mujeres" | "mixto";
+
+/** Una unidad. Varias del mismo público en el mismo piso son entradas distintas. */
+export type BathroomUnit = {
+  piso: number;
+  publico: BathroomAudience;
+};
 
 /**
  * Propiedades de cada feature de `espacios.json`.
  * El punto de ruta es `centro`. Si falta, se usa el Point o el centroide del polígono.
  * El polígono, cuando existe, es el área que se pinta en el mapa.
+ * En un baño, `banos` lista las unidades; el mapa solo pinta una etiqueta.
  */
 export type SpaceProperties = {
   id: string;
@@ -61,6 +71,7 @@ export type SpaceProperties = {
   centro?: [number, number] | null;
   /** Texto corto sobre el área. Si falta, el mapa usa `nombre`. */
   etiqueta?: string | null;
+  banos?: BathroomUnit[] | null;
 };
 
 export type SpaceFeatureCollection = {
