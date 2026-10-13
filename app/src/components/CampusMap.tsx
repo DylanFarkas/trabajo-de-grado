@@ -209,6 +209,8 @@ function buildMapHtml(initialTheme: MapTheme): string {
     .route-marker.origin, .route-marker.stop { background: #111111; }
     .route-marker.dest, .route-marker.stop-last { background: #2563eb; }
     .route-marker.parking { background: #0f766e; }
+    .route-marker.parking.bike { background: #ea580c; }
+    .route-marker svg { width: 17px; height: 17px; fill: currentColor; }
     .entrance-marker {
       width: 28px; height: 28px; border-radius: 14px;
       background: #111111; border: 2.5px solid #fff;
@@ -242,6 +244,9 @@ function buildMapHtml(initialTheme: MapTheme): string {
     }
     body[data-theme="night"] .route-marker.parking {
       background: #2dd4bf; color: #042f2e;
+    }
+    body[data-theme="night"] .route-marker.parking.bike {
+      background: #fb923c; color: #431407;
     }
     body[data-theme="night"] .entrance-marker {
       border-color: #0b1220;
@@ -296,7 +301,9 @@ function buildMapHtml(initialTheme: MapTheme): string {
     var lampData = null;
     var routeDrive = null;
     var routeWalk = null;
+    var routeBike = false;
     var parkingMarker = null;
+    var BIKE_SVG = '<svg viewBox="0 0 24 24"><path d="M15.5 5.5c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zM5 12c-2.8 0-5 2.2-5 5s2.2 5 5 5 5-2.2 5-5-2.2-5-5-5zm0 8.5c-1.9 0-3.5-1.6-3.5-3.5s1.6-3.5 3.5-3.5 3.5 1.6 3.5 3.5-1.6 3.5-3.5 3.5zm5.8-10l2.4-2.4.8.8c1.3 1.3 3 2.1 5.1 2.1V9c-1.5 0-2.7-.6-3.6-1.5l-1.9-1.9c-.5-.4-1-.6-1.6-.6s-1.1.2-1.4.6L7.8 8.4c-.4.4-.6.9-.6 1.4 0 .6.2 1.1.6 1.4L11 14v5h2v-6.2l-2.2-2.3zM19 12c-2.8 0-5 2.2-5 5s2.2 5 5 5 5-2.2 5-5-2.2-5-5-5zm0 8.5c-1.9 0-3.5-1.6-3.5-3.5s1.6-3.5 3.5-3.5 3.5 1.6 3.5 3.5-1.6 3.5-3.5 3.5z"/></svg>';
     var cameraFitted = false;
 
     function palette() { return CONFIG.palettes[theme]; }
@@ -501,6 +508,8 @@ function buildMapHtml(initialTheme: MapTheme): string {
       removeRouteLayers();
       var colors = palette();
       var walkColor = theme === 'night' ? '#2dd4bf' : '#0f766e';
+      var bikeColor = theme === 'night' ? '#fb923c' : '#ea580c';
+      var lineColor = routeBike ? bikeColor : colors.routeLine;
       if (drive.features.length) {
         map.addSource('route', { type: 'geojson', data: drive });
         map.addLayer({
@@ -509,7 +518,7 @@ function buildMapHtml(initialTheme: MapTheme): string {
           source: 'route',
           layout: { 'line-cap': 'round', 'line-join': 'round' },
           paint: {
-            'line-color': colors.routeGlow,
+            'line-color': routeBike ? bikeColor : colors.routeGlow,
             'line-width': 16,
             'line-opacity': colors.routeGlowOpacity,
             'line-blur': 6
@@ -527,7 +536,7 @@ function buildMapHtml(initialTheme: MapTheme): string {
           type: 'line',
           source: 'route',
           layout: { 'line-cap': 'round', 'line-join': 'round' },
-          paint: { 'line-color': colors.routeLine, 'line-width': 5.5, 'line-opacity': 0.98 }
+          paint: { 'line-color': lineColor, 'line-width': 5.5, 'line-opacity': 0.98 }
         });
       }
       if (walk.features.length) {
@@ -559,6 +568,7 @@ function buildMapHtml(initialTheme: MapTheme): string {
     window.clearRouteLine = function () {
       routeDrive = null;
       routeWalk = null;
+      routeBike = false;
       clearParkingMarker();
       removeRouteLayers();
     };
@@ -576,12 +586,14 @@ function buildMapHtml(initialTheme: MapTheme): string {
       var drive = null;
       var walk = null;
       var parking = null;
+      var bike = false;
       if (Array.isArray(payload)) {
         drive = payload.length >= 2 ? [payload] : null;
       } else if (payload) {
         drive = payload.drive && payload.drive.length ? payload.drive : null;
         walk = payload.walk && payload.walk.length ? payload.walk : null;
         parking = payload.parking || null;
+        bike = payload.profile === 'cycling-regular';
         if (!drive && !walk && payload.coordinates && payload.coordinates.length >= 2) {
           drive = [payload.coordinates];
         }
@@ -596,12 +608,14 @@ function buildMapHtml(initialTheme: MapTheme): string {
       }
       routeDrive = drive;
       routeWalk = walk;
+      routeBike = bike;
       if (!styleBusy) drawRouteLine();
       clearParkingMarker();
       if (parking && parking.point) {
         var el = document.createElement('div');
-        el.className = 'route-marker parking';
-        el.textContent = 'P';
+        el.className = bike ? 'route-marker parking bike' : 'route-marker parking';
+        if (bike) el.innerHTML = BIKE_SVG;
+        else el.textContent = 'P';
         parkingMarker = new maplibregl.Marker({ element: el, anchor: 'center' })
           .setLngLat([parking.point.longitude, parking.point.latitude])
           .addTo(map);
@@ -1586,6 +1600,7 @@ export function CampusMap() {
         drive: result.drive?.lines ?? null,
         walk: result.walk?.lines ?? null,
         parking: result.parking,
+        profile: result.profile ?? null,
       });
       inject(`
         var data = ${payload};
@@ -1597,6 +1612,7 @@ export function CampusMap() {
             drive: data.drive,
             walk: data.walk,
             parking: data.parking,
+            profile: data.profile,
             coordinates: data.coordinates
           });
         }
@@ -1665,7 +1681,11 @@ export function CampusMap() {
       setRouting(true);
       setRouteError(null);
       setStatus(
-        profile === "driving-car" ? "Calculando ruta en carro…" : "Calculando ruta a pie…",
+        profile === "driving-car"
+          ? "Calculando ruta en carro…"
+          : profile === "cycling-regular"
+            ? "Calculando ruta en bici…"
+            : "Calculando ruta a pie…",
       );
 
       try {
@@ -1678,9 +1698,10 @@ export function CampusMap() {
           clearRouteLine();
           return;
         }
-        setRoute({ ...result, profile });
+        const painted = { ...result, profile };
+        setRoute(painted);
         setRouteError(null);
-        paintRoute(result);
+        paintRoute(painted);
         if (result.entrance && result.mode !== "campus") {
           setStatus(`Vía ${result.entrance.street}`);
           setTimeout(() => {
@@ -2770,7 +2791,9 @@ export function CampusMap() {
                       ? "a pie"
                       : route.profile === "driving-car"
                         ? "en carro"
-                        : "a pie",
+                        : route.profile === "cycling-regular"
+                          ? "en bici"
+                          : "a pie",
                     route.mode === "campus" ? null : route.entrance ? `vía ${route.entrance.street}` : null,
                   ]
                     .filter(Boolean)

@@ -783,6 +783,19 @@ export function entrancePoint(
   return nodeLatLng(bestId);
 }
 
+/** Todas las puertas del edificio cuando el punto es una de ellas y hay más de una. */
+export function siblingDoors(point: LatLng): LatLng[] {
+  const id = nearestNodeId(point);
+  if (id == null) return [];
+  const node = nodeLatLng(id);
+  if (!node || haversineM(point, node) > 1) return [];
+  for (const ids of ENTRANCE_NODES.values()) {
+    if (ids.length < 2 || !ids.includes(id)) continue;
+    return ids.map(nodeLatLng).filter((door): door is LatLng => door != null);
+  }
+  return [];
+}
+
 export function routeBetweenPoints(
   origin: LatLng,
   destination: LatLng,
@@ -859,11 +872,14 @@ export function nearestSpace(
   return { ...toCampusSpace(best), distanceM: bestDistance };
 }
 
-/** El punto cae en el nodo de un parqueadero. */
-export function parkingForPoint(point: LatLng): CampusSpace | null {
+/** El punto cae en el nodo de un parqueadero de ese tipo. */
+export function parkingForPoint(
+  point: LatLng,
+  tipo: "parqueadero" | "parqueadero_bici" = "parqueadero",
+): CampusSpace | null {
   const id = nearestNodeId(point);
   if (id == null) return null;
-  const space = SPACE_LIST.find((item) => item.tipo === "parqueadero" && item.nodeId === id);
+  const space = SPACE_LIST.find((item) => item.tipo === tipo && item.nodeId === id);
   if (!space?.nodeId) return null;
   const node = nodeLatLng(space.nodeId);
   if (!node || haversineM(point, node) > 30) return null;
@@ -892,4 +908,11 @@ export function nearestDriveParking(
   }
   if (!best || bestDistance === Infinity) return null;
   return { ...toCampusSpace(best), distanceM: bestDistance };
+}
+
+/** Parqueadero de bicicletas con menor caminata hasta el destino. */
+export function nearestBikeParking(
+  destination: LatLng,
+): (CampusSpace & { distanceM: number }) | null {
+  return nearestSpace(destination, "parqueadero_bici");
 }

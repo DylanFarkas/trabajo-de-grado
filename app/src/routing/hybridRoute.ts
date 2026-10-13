@@ -4,11 +4,13 @@ import {
   type CampusEntrance,
 } from "@/constants/entrances";
 import {
+  nearestBikeParking,
   nearestDriveParking,
   nearestNodeId,
   nodeLatLng,
   parkingForPoint,
   routeBetweenPoints,
+  siblingDoors,
   spacePoint,
   type LatLng,
   type RouteResult,
@@ -30,11 +32,11 @@ export type HybridRouteResult = RouteResult & {
   durationS: number | null;
   entrance: CampusEntrance | null;
   profile?: StreetProfile;
-  /** Tramo en carro. Ausente cuando toda la ruta es a pie. */
+  /** Tramo en carro o en bici. Ausente cuando toda la ruta es a pie. */
   drive: RouteLeg | null;
-  /** Tramo a pie de una ruta en carro. */
+  /** Tramo a pie de una ruta en carro o en bici. */
   walk: RouteLeg | null;
-  /** Parqueadero donde se deja o se toma el carro. */
+  /** Parqueadero donde se deja o se toma el carro, o donde se deja la bici. */
   parking: { name: string; point: LatLng } | null;
   /** Texto corto: "en carro hasta P6 · luego a pie". */
   detail: string | null;
@@ -49,6 +51,7 @@ export class CampusRouteError extends Error {
 
 const ON_ROAD_M = 40;
 const CAMPUS_DRIVE_MPS = 6;
+const CAMPUS_BIKE_MPS = 4;
 
 export function pointInCampus(point: LatLng): boolean {
   return (
@@ -102,6 +105,9 @@ export async function routeHybrid(
 ): Promise<HybridRouteResult | null> {
   if (profile === "driving-car") {
     return routeByCar(origin, destination, viaEntrance);
+  }
+  if (profile === "cycling-regular") {
+    return routeByBike(origin, destination, viaEntrance);
   }
 
   const originInside = pointInCampus(origin);
@@ -305,6 +311,35 @@ function lotPointOf(id: string): LatLng | null {
   return spacePoint(id);
 }
 
+/**
+ * La puerta llega elegida según el origen, pero en carro o en bici la caminata
+ * empieza en el parqueadero. Con varias puertas, gana la más cercana a su parqueadero.
+ */
+function doorNearestParking(destination: LatLng, walkFromParking: (door: LatLng) => number): LatLng {
+  const doors = siblingDoors(destination);
+  if (doors.length < 2) return destination;
+  let best = destination;
+  let bestM = walkFromParking(destination);
+  for (const door of doors) {
+    const meters = walkFromParking(door);
+    if (meters < bestM) {
+      best = door;
+      bestM = meters;
+    }
+  }
+  return best;
+}
+
+function walkFromDriveParking(door: LatLng): number {
+  if (parkingForPoint(door)) return 0;
+  return nearestDriveParking(door)?.distanceM ?? Infinity;
+}
+
+function walkFromBikeParking(door: LatLng): number {
+  if (parkingForPoint(door, "parqueadero_bici")) return 0;
+  return nearestBikeParking(door)?.distanceM ?? Infinity;
+}
+
 async function routeByCar(
   origin: LatLng,
   destination: LatLng,
@@ -339,10 +374,11 @@ async function routeByCar(
 
 async function routeCarTowardCampus(
   origin: LatLng,
-  destination: LatLng,
+  requested: LatLng,
   viaEntrance: LatLng | null,
   originInside: boolean,
 ): Promise<HybridRouteResult> {
+  const destination = doorNearestParking(requested, walkFromDriveParking);
   const atLot = parkingForPoint(destination);
   const lot = atLot ?? nearestDriveParking(destination);
   const lotPoint = lot ? lotPointOf(lot.id) : null;
@@ -465,6 +501,152 @@ async function routeCarLeavingCampus(
     walk: walkLines.length ? { lines: walkLines, distanceM: walkM } : null,
     parking,
     detail: parking ? `a pie hasta ${parking.name} · luego en carro` : "en carro",
+  };
+}
+
+const NO_BIKE_PARKING = "No hay un parqueadero de bicicletas cerca de ese destino";
+const BIKE_PARKING_PREFIX = /^parqueadero de bicicletas\s+/i;
+
+function bikeParkingName(space: { nombre: string }): string {
+  return space.nombre.replace(BIKE_PARKING_PREFIX, "") || space.nombre;
+}
+
+/** Dentro del campus la bici va por la red peatonal: los parqueaderos de bicis cuelgan de senderos. */
+async function routeByBike(
+  origin: LatLng,
+  destination: LatLng,
+  viaEntrance: LatLng | null,
+): Promise<HybridRouteResult> {
+  const originInside = pointInCampus(origin);
+  const destInside = pointInCampus(destination);
+
+  if (!originInside && !destInside) {
+    const street = await fetchStreetRoute(origin, destination, "cycling-regular");
+    return {
+      nodeIds: [],
+      coordinates: street.coordinates,
+      distanceM: street.distanceM,
+      origin,
+      destination,
+      mode: "street",
+      durationS: street.durationS,
+      entrance: null,
+      drive: { lines: [street.coordinates], distanceM: street.distanceM },
+      walk: null,
+      parking: null,
+      detail: "en bici",
+    };
+  }
+
+  if (destInside) {
+    return routeBikeTowardCampus(origin, destination, viaEntrance, originInside);
+  }
+  return routeBikeLeavingCampus(origin, destination, viaEntrance);
+}
+
+async function routeBikeTowardCampus(
+  origin: LatLng,
+  requested: LatLng,
+  viaEntrance: LatLng | null,
+  originInside: boolean,
+): Promise<HybridRouteResult> {
+  const destination = doorNearestParking(requested, walkFromBikeParking);
+  const atRack = parkingForPoint(destination, "parqueadero_bici");
+  const rack = atRack ?? nearestBikeParking(destination);
+  const rackPoint = rack ? lotPointOf(rack.id) : null;
+  if (!rack || !rackPoint) throw new CampusRouteError(NO_BIKE_PARKING);
+
+  const walkAfter = atRack ? null : routeBetweenPoints(rackPoint, destination, "walk");
+  if (!atRack && !walkAfter) {
+    throw new CampusRouteError(
+      "No hay camino a pie desde el parqueadero de bicicletas hasta el destino",
+    );
+  }
+
+  let entrance: CampusEntrance | null = null;
+  let rideFrom = origin;
+  let streetMeters = 0;
+  let streetSeconds = 0;
+  const rideLines: [number, number][][] = [];
+  if (!originInside) {
+    entrance = chosenEntrance(viaEntrance) ?? pickBestEntrance(origin, rackPoint);
+    const street = await fetchStreetRoute(origin, entrance.point, "cycling-regular");
+    streetMeters = street.distanceM;
+    streetSeconds = street.durationS;
+    rideLines.push(street.coordinates);
+    rideFrom = entrance.point;
+  }
+
+  const rideCampus = samePoint(rideFrom, rackPoint)
+    ? null
+    : routeBetweenPoints(rideFrom, rackPoint, "walk");
+  if (!samePoint(rideFrom, rackPoint) && !rideCampus) {
+    throw new CampusRouteError("No hay camino en bici hasta ese parqueadero de bicicletas");
+  }
+  if (rideCampus && rideCampus.coordinates.length >= 2) rideLines.push(rideCampus.coordinates);
+
+  const walkLines =
+    walkAfter && walkAfter.coordinates.length >= 2 ? [walkAfter.coordinates] : [];
+  const rideM = streetMeters + (rideCampus?.distanceM ?? 0);
+  const walkM = walkAfter?.distanceM ?? 0;
+  const coordinates = rideLines.concat(walkLines).reduce(mergeCoordinates, [] as [number, number][]);
+  const rackLabel = bikeParkingName(rack);
+  const rode = rideM >= 1;
+  const parts = [
+    rode ? (atRack ? "en bici" : `en bici hasta ${rackLabel}`) : null,
+    walkAfter ? (rode ? "luego a pie" : "a pie") : null,
+  ].filter(Boolean);
+
+  return {
+    nodeIds: rideCampus?.nodeIds ?? [],
+    coordinates,
+    distanceM: rideM + walkM,
+    origin,
+    destination,
+    mode: walkLines.length || entrance ? "hybrid" : "campus",
+    durationS:
+      streetSeconds + (rideCampus?.distanceM ?? 0) / CAMPUS_BIKE_MPS + walkM / 1.4,
+    entrance,
+    drive: rideLines.length ? { lines: rideLines, distanceM: rideM } : null,
+    walk: walkLines.length ? { lines: walkLines, distanceM: walkM } : null,
+    parking: atRack ? null : { name: rackLabel, point: rackPoint },
+    detail: parts.join(" · ") || null,
+  };
+}
+
+/** Quien sale en bici se la lleva: no hay parqueadero en este sentido. */
+async function routeBikeLeavingCampus(
+  origin: LatLng,
+  destination: LatLng,
+  viaEntrance: LatLng | null,
+): Promise<HybridRouteResult> {
+  const entrance = chosenEntrance(viaEntrance) ?? pickBestEntrance(destination, origin);
+  const rideCampus = samePoint(origin, entrance.point)
+    ? null
+    : routeBetweenPoints(origin, entrance.point, "walk");
+  if (!samePoint(origin, entrance.point) && !rideCampus) {
+    throw new CampusRouteError("No hay camino en bici hasta esa portería");
+  }
+  const street = await fetchStreetRoute(entrance.point, destination, "cycling-regular");
+
+  const rideLines: [number, number][][] = [];
+  if (rideCampus && rideCampus.coordinates.length >= 2) rideLines.push(rideCampus.coordinates);
+  if (street.coordinates.length >= 2) rideLines.push(street.coordinates);
+  const rideM = (rideCampus?.distanceM ?? 0) + street.distanceM;
+
+  return {
+    nodeIds: rideCampus?.nodeIds ?? [],
+    coordinates: rideLines.reduce(mergeCoordinates, [] as [number, number][]),
+    distanceM: rideM,
+    origin,
+    destination,
+    mode: "hybrid",
+    durationS: street.durationS + (rideCampus?.distanceM ?? 0) / CAMPUS_BIKE_MPS,
+    entrance,
+    drive: { lines: rideLines, distanceM: rideM },
+    walk: null,
+    parking: null,
+    detail: "en bici",
   };
 }
 

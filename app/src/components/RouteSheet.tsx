@@ -55,8 +55,13 @@ function ModeToggle({
   onChange?: (profile: StreetProfile) => void;
   disabled?: boolean;
 }) {
-  const options: { id: StreetProfile; label: string; icon: "directions-walk" | "directions-car" }[] = [
+  const options: {
+    id: StreetProfile;
+    label: string;
+    icon: "directions-walk" | "directions-car" | "directions-bike";
+  }[] = [
     { id: "foot-walking", label: "A pie", icon: "directions-walk" },
+    { id: "cycling-regular", label: "En bici", icon: "directions-bike" },
     { id: "driving-car", label: "En carro", icon: "directions-car" },
   ];
   return (

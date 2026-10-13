@@ -1,6 +1,6 @@
 import type { LatLng } from "./graph";
 
-export type StreetProfile = "foot-walking" | "driving-car";
+export type StreetProfile = "foot-walking" | "driving-car" | "cycling-regular";
 
 export type StreetRouteResult = {
   coordinates: [number, number][];
