@@ -10,7 +10,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "app" / "assets" / "geojson" / "espacios.json"
-KINDS = {"bano", "parqueadero", "parqueadero_bici", "cancha"}
+KINDS = {"bano", "parqueadero", "parqueadero_bici", "parqueadero_moto", "cancha"}
 
 
 def sql_quote(value: str) -> str:

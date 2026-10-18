@@ -4,18 +4,18 @@ export type CampusEntrance = {
   id: string;
   name: string;
   street: string;
-  /** WGS84 — edita latitude/longitude aquí o reubica tocando el mapa en la app. */
+  /** WGS84 — edita latitude/longitude aquí. */
   point: LatLng;
 };
 
 /**
  * Entradas Univalle Meléndez.
+ * Al llegar o salir del campus, `hybridRoute` elige sola la que acorta calle + tramo interno
+ * (o hasta el parqueadero, en carro). El usuario no las selecciona.
+ * La moto no usa estas porterías: entra por `MOTORCYCLE_ENTRANCE`.
  *
- * Cómo ajustar la posición:
- * 1. En la app: Ir al campus → "Reubicar" en una entrada → toca el mapa en el portón real.
- *    El estado mostrará lon/lat para pegar aquí.
- * 2. O en Google Maps / OSM: clic derecho en el portón → copiar coordenadas
- *    (OJO: Google muestra lat, lon; aquí va longitude primero, luego latitude).
+ * Cómo ajustar la posición: en Google Maps / OSM, clic derecho en el portón → copiar
+ * coordenadas (OJO: Google muestra lat, lon; aquí va longitude primero, luego latitude).
  *
  * Ejemplo: en Maps ves "3.37508, -76.53722" →
  *   point: { latitude: 3.37508, longitude: -76.53722 }
@@ -40,3 +40,16 @@ export const CAMPUS_ENTRANCES: CampusEntrance[] = [
     point: { longitude: -76.537210, latitude: 3.375066 },
   },
 ];
+
+/**
+ * Acceso de calle del parqueadero de motos (P14).
+ * Google Maps: 3.370187, -76.534785 → aquí latitude, longitude.
+ * La ruta en moto termina la calle en este punto y sigue a pie desde P14.
+ * No entra en `CAMPUS_ENTRANCES`: carro, bici y a pie no pasan por aquí.
+ */
+export const MOTORCYCLE_ENTRANCE: CampusEntrance = {
+  id: "p14-moto",
+  name: "Entrada parqueadero de motos",
+  street: "Acceso motos",
+  point: { latitude: 3.370187, longitude: -76.534785 },
+};

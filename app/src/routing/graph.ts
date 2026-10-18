@@ -348,7 +348,16 @@ function splicePassages(nodes: Map<number, GraphNode>, raw: RawEdge[]) {
   }
 }
 
-const SPACE_KINDS = new Set<SpaceKind>(["bano", "parqueadero", "parqueadero_bici", "cancha"]);
+const SPACE_KINDS = new Set<SpaceKind>([
+  "bano",
+  "parqueadero",
+  "parqueadero_bici",
+  "parqueadero_moto",
+  "cancha",
+]);
+
+/** Único parqueadero de motos del campus: siempre se deja la moto aquí al llegar. */
+export const MOTORCYCLE_PARKING_ID = "p14";
 const SPACE_ID = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;
 
 type SpaceNode = {
@@ -478,7 +487,7 @@ function spliceSpaces(nodes: Map<number, GraphNode>, raw: RawEdge[]) {
     }
 
     if (
-      props.tipo === "parqueadero" &&
+      (props.tipo === "parqueadero" || props.tipo === "parqueadero_moto") &&
       nodeId != null &&
       !nodeTouchesVehicle(raw, nodeId)
     ) {
@@ -875,7 +884,7 @@ export function nearestSpace(
 /** El punto cae en el nodo de un parqueadero de ese tipo. */
 export function parkingForPoint(
   point: LatLng,
-  tipo: "parqueadero" | "parqueadero_bici" = "parqueadero",
+  tipo: "parqueadero" | "parqueadero_bici" | "parqueadero_moto" = "parqueadero",
 ): CampusSpace | null {
   const id = nearestNodeId(point);
   if (id == null) return null;
@@ -884,6 +893,14 @@ export function parkingForPoint(
   const node = nodeLatLng(space.nodeId);
   if (!node || haversineM(point, node) > 30) return null;
   return toCampusSpace(space);
+}
+
+/** Parqueadero de motos fijo (P14). `null` si no está en el GeoJSON o no engancha. */
+export function motorcycleParking(): CampusSpace | null {
+  const space = SPACE_LIST.find(
+    (item) => item.id === MOTORCYCLE_PARKING_ID && item.tipo === "parqueadero_moto",
+  );
+  return space?.nodeId != null ? toCampusSpace(space) : null;
 }
 
 /** Parqueadero alcanzable en carro con menor caminata hasta el destino. */

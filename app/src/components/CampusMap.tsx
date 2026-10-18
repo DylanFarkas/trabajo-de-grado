@@ -18,10 +18,6 @@ import {
   type MapTheme,
 } from "@/constants/mapTheme";
 import { useMapTheme } from "@/map-theme";
-import {
-  CAMPUS_ENTRANCES,
-  type CampusEntrance,
-} from "@/constants/entrances";
 import { catalogMapTone, categoriesForCode, placeInfo, type CampusCatalog, type PresetRoute } from "@/places";
 import {
   destinationFromBuilding,
@@ -59,7 +55,7 @@ import {
   type HybridRouteResult,
 } from "@/routing/hybridRoute";
 import { campusLampPosts } from "@/routing/lampLight";
-import type { StreetProfile } from "@/routing/openRouteService";
+import { streetSourceLabel, type StreetProfile } from "@/routing/openRouteService";
 import type { BuildingProperties, GeoJsonFeatureCollection } from "@/types/campus";
 import { MapHeader } from "@/components/MapHeader";
 import { AssistantSheet } from "@/components/AssistantSheet";
@@ -210,6 +206,7 @@ function buildMapHtml(initialTheme: MapTheme): string {
     .route-marker.dest, .route-marker.stop-last { background: #2563eb; }
     .route-marker.parking { background: #0f766e; }
     .route-marker.parking.bike { background: #ea580c; }
+    .route-marker.parking.moto { background: #475569; }
     .route-marker svg { width: 17px; height: 17px; fill: currentColor; }
     .entrance-marker {
       width: 28px; height: 28px; border-radius: 14px;
@@ -247,6 +244,9 @@ function buildMapHtml(initialTheme: MapTheme): string {
     }
     body[data-theme="night"] .route-marker.parking.bike {
       background: #fb923c; color: #431407;
+    }
+    body[data-theme="night"] .route-marker.parking.moto {
+      background: #94a3b8; color: #0f172a;
     }
     body[data-theme="night"] .entrance-marker {
       border-color: #0b1220;
@@ -304,6 +304,7 @@ function buildMapHtml(initialTheme: MapTheme): string {
     var routeBike = false;
     var parkingMarker = null;
     var BIKE_SVG = '<svg viewBox="0 0 24 24"><path d="M15.5 5.5c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zM5 12c-2.8 0-5 2.2-5 5s2.2 5 5 5 5-2.2 5-5-2.2-5-5-5zm0 8.5c-1.9 0-3.5-1.6-3.5-3.5s1.6-3.5 3.5-3.5 3.5 1.6 3.5 3.5-1.6 3.5-3.5 3.5zm5.8-10l2.4-2.4.8.8c1.3 1.3 3 2.1 5.1 2.1V9c-1.5 0-2.7-.6-3.6-1.5l-1.9-1.9c-.5-.4-1-.6-1.6-.6s-1.1.2-1.4.6L7.8 8.4c-.4.4-.6.9-.6 1.4 0 .6.2 1.1.6 1.4L11 14v5h2v-6.2l-2.2-2.3zM19 12c-2.8 0-5 2.2-5 5s2.2 5 5 5 5-2.2 5-5-2.2-5-5-5zm0 8.5c-1.9 0-3.5-1.6-3.5-3.5s1.6-3.5 3.5-3.5 3.5 1.6 3.5 3.5-1.6 3.5-3.5 3.5z"/></svg>';
+    var MOTO_SVG = '<svg viewBox="0 0 24 24"><path d="M20 11c-.18 0-.36.03-.53.05L17.41 9H20V6l-3.72 1.86L13.41 5H9v2h3.59l2 2H11l-4 2-2-2H0v2h4c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4l2 2h3l3.49-6.1 1.01 1.01c-.91.73-1.5 1.84-1.5 3.09 0 2.21 1.79 4 4 4s4-1.79 4-4-1.79-4-4-4zM4 17c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm16 0c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/></svg>';
     var cameraFitted = false;
 
     function palette() { return CONFIG.palettes[theme]; }
@@ -587,6 +588,7 @@ function buildMapHtml(initialTheme: MapTheme): string {
       var walk = null;
       var parking = null;
       var bike = false;
+      var moto = false;
       if (Array.isArray(payload)) {
         drive = payload.length >= 2 ? [payload] : null;
       } else if (payload) {
@@ -594,6 +596,7 @@ function buildMapHtml(initialTheme: MapTheme): string {
         walk = payload.walk && payload.walk.length ? payload.walk : null;
         parking = payload.parking || null;
         bike = payload.profile === 'cycling-regular';
+        moto = payload.profile === 'driving-motorcycle';
         if (!drive && !walk && payload.coordinates && payload.coordinates.length >= 2) {
           drive = [payload.coordinates];
         }
@@ -613,8 +616,11 @@ function buildMapHtml(initialTheme: MapTheme): string {
       clearParkingMarker();
       if (parking && parking.point) {
         var el = document.createElement('div');
-        el.className = bike ? 'route-marker parking bike' : 'route-marker parking';
+        el.className = bike
+          ? 'route-marker parking bike'
+          : (moto ? 'route-marker parking moto' : 'route-marker parking');
         if (bike) el.innerHTML = BIKE_SVG;
+        else if (moto) el.innerHTML = MOTO_SVG;
         else el.textContent = 'P';
         parkingMarker = new maplibregl.Marker({ element: el, anchor: 'center' })
           .setLngLat([parking.point.longitude, parking.point.latitude])
@@ -815,7 +821,7 @@ function buildMapHtml(initialTheme: MapTheme): string {
     }
 
     var CAMPUS_LAYERS = [
-      'bicis-icon', 'banos-icon', 'buildings-labels', 'espacios-label', 'lamp-bulb', 'lamp-3d', 'buildings-selected', 'buildings-3d',
+      'motos-icon', 'bicis-icon', 'banos-icon', 'buildings-labels', 'espacios-label', 'lamp-bulb', 'lamp-3d', 'buildings-selected', 'buildings-3d',
       'buildings-footprint', 'buildings-hit', 'campus-building-3d',
       'lamp-core', 'lamp-glow', 'lamp-pool',
       'steps-line', 'foot-line', 'foot-casing', 'service-line', 'service-casing',
@@ -860,6 +866,7 @@ function buildMapHtml(initialTheme: MapTheme): string {
     /** Material Icons round, 24x24. El mismo set que Icon (@expo/vector-icons/MaterialIcons). */
     var WC_GLYPH = 'M5.5 21v-6.5H5c-.55 0-1-.45-1-1V9c0-1.1.9-2 2-2h3c1.1 0 2 .9 2 2v4.5c0 .55-.45 1-1 1h-.5V21c0 .55-.45 1-1 1h-2c-.55 0-1-.45-1-1zM18 21v-5h1.61c.68 0 1.16-.67.95-1.32l-2.1-6.31C18.18 7.55 17.42 7 16.56 7h-.12c-.86 0-1.63.55-1.9 1.37l-2.1 6.31c-.22.65.26 1.32.95 1.32H15v5c0 .55.45 1 1 1h1c.55 0 1-.45 1-1zM7.5 6c1.11 0 2-.89 2-2s-.89-2-2-2-2 .89-2 2 .89 2 2 2zm9 0c1.11 0 2-.89 2-2s-.89-2-2-2-2 .89-2 2 .89 2 2 2z';
     var BIKE_GLYPH = 'M15.5 5.5c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zM5 12c-2.8 0-5 2.2-5 5s2.2 5 5 5 5-2.2 5-5-2.2-5-5-5zm0 8.5c-1.9 0-3.5-1.6-3.5-3.5s1.6-3.5 3.5-3.5 3.5 1.6 3.5 3.5-1.6 3.5-3.5 3.5zm5.8-10l2.4-2.4.8.8c1.06 1.06 2.38 1.78 3.96 2.02.6.09 1.14-.39 1.14-1 0-.49-.37-.91-.85-.99-1.11-.18-2.02-.71-2.75-1.43l-1.9-1.9c-.5-.4-1-.6-1.6-.6s-1.1.2-1.4.6L7.8 8.4c-.4.4-.6.9-.6 1.4 0 .6.2 1.1.6 1.4L11 14v4c0 .55.45 1 1 1s1-.45 1-1v-4.4c0-.52-.2-1.01-.55-1.38L10.8 10.5zM19 12c-2.8 0-5 2.2-5 5s2.2 5 5 5 5-2.2 5-5-2.2-5-5-5zm0 8.5c-1.9 0-3.5-1.6-3.5-3.5s1.6-3.5 3.5-3.5 3.5 1.6 3.5 3.5-1.6 3.5-3.5 3.5z';
+    var MOTO_GLYPH = 'M20 11c-.18 0-.36.03-.53.05L17.41 9H20V6l-3.72 1.86L13.41 5H9v2h3.59l2 2H11l-4 2-2-2H0v2h4c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4l2 2h3l3.49-6.1 1.01 1.01c-.91.73-1.5 1.84-1.5 3.09 0 2.21 1.79 4 4 4s4-1.79 4-4-1.79-4-4-4zM4 17c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm16 0c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z';
 
     /** Circulo azul con el glifo en blanco. El mapa es un canvas y no puede montar el componente Icon. */
     function ensureMarkIcon(imageId, glyph, scale) {
@@ -951,7 +958,7 @@ function buildMapHtml(initialTheme: MapTheme): string {
         }, beforeId);
         map.addLayer({
           id: 'espacios-label', type: 'symbol', source: 'espacios',
-          filter: ['match', ['get', 'tipo'], ['bano', 'parqueadero_bici'], false, true],
+          filter: ['match', ['get', 'tipo'], ['bano', 'parqueadero_bici', 'parqueadero_moto'], false, true],
           minzoom: 16,
           layout: {
             'text-field': ['coalesce', ['get', 'etiqueta'], ['get', 'nombre'], ''],
@@ -1239,6 +1246,7 @@ function buildMapHtml(initialTheme: MapTheme): string {
       if (map.getSource('espacios')) {
         ensureMarkIcon('bano-mark', WC_GLYPH, 3);
         ensureMarkIcon('bici-mark', BIKE_GLYPH, 2.6);
+        ensureMarkIcon('moto-mark', MOTO_GLYPH, 2.6);
         var spaceIconLayout = {
           'icon-size': ['interpolate', ['linear'], ['zoom'], 15.6, 0.8, 17, 0.95, 19, 1.1],
           'icon-allow-overlap': true,
@@ -1257,6 +1265,12 @@ function buildMapHtml(initialTheme: MapTheme): string {
           filter: ['==', ['get', 'tipo'], 'parqueadero_bici'],
           minzoom: 15.6,
           layout: Object.assign({ 'icon-image': 'bici-mark' }, spaceIconLayout)
+        });
+        map.addLayer({
+          id: 'motos-icon', type: 'symbol', source: 'espacios',
+          filter: ['==', ['get', 'tipo'], 'parqueadero_moto'],
+          minzoom: 15.6,
+          layout: Object.assign({ 'icon-image': 'moto-mark' }, spaceIconLayout)
         });
       }
 
@@ -1372,18 +1386,24 @@ function buildMapHtml(initialTheme: MapTheme): string {
         var bikes = map.queryRenderedFeatures(bbox, { layers: ['bicis-icon'] });
         if (bikes.length) bikeSpaceId = (bikes[0].properties || {}).id || null;
       }
+      var motoSpaceId = null;
+      if (!bathroomEdificio && !bikeSpaceId && map.getLayer('motos-icon')) {
+        var motos = map.queryRenderedFeatures(bbox, { layers: ['motos-icon'] });
+        if (motos.length) motoSpaceId = (motos[0].properties || {}).id || null;
+      }
       var space = null;
-      if (!bathroomEdificio && !bikeSpaceId && !building && map.getLayer('espacios-fill')) {
+      if (!bathroomEdificio && !bikeSpaceId && !motoSpaceId && !building && map.getLayer('espacios-fill')) {
         space = map.queryRenderedFeatures(bbox, { layers: ['espacios-fill'] })[0] || null;
       }
+      var iconSpaceId = bikeSpaceId || motoSpaceId;
       post({
         type: 'map-click',
         longitude: e.lngLat.lng,
         latitude: e.lngLat.lat,
-        building: bathroomEdificio || bikeSpaceId ? null : (building ? (building.properties || null) : null),
+        building: bathroomEdificio || iconSpaceId ? null : (building ? (building.properties || null) : null),
         spaceId: bathroomEdificio
           ? bathroomSpaceId
-          : (bikeSpaceId || (space && space.properties ? (space.properties.id || null) : null)),
+          : (iconSpaceId || (space && space.properties ? (space.properties.id || null) : null)),
         bathroomEdificio: bathroomEdificio
       });
     });
@@ -1425,9 +1445,6 @@ export function CampusMap() {
   const [routing, setRouting] = useState(false);
   const [userLocation, setUserLocation] = useState<LatLng | null>(null);
   const [userOutsideCampus, setUserOutsideCampus] = useState(false);
-  const [campusPickerOpen, setCampusPickerOpen] = useState(false);
-  const [relocatingEntranceId, setRelocatingEntranceId] = useState<string | null>(null);
-  const [entranceOverrides, setEntranceOverrides] = useState<Record<string, LatLng>>({});
   const [streetProfile, setStreetProfile] = useState<StreetProfile>("foot-walking");
   const [nightChoiceOpen, setNightChoiceOpen] = useState(false);
   const { mode: themeMode, theme: mapTheme, initialTheme, setMode: setThemeMode } = useMapTheme();
@@ -1447,7 +1464,6 @@ export function CampusMap() {
   const pendingPresetRef = useRef<PresetRoute | null>(null);
   const selectedRef = useRef<SelectedPlace | null>(null);
   const routeRequestRef = useRef(0);
-  const relocatingRef = useRef<string | null>(null);
   const streetProfileRef = useRef<StreetProfile>(streetProfile);
   const userLocationRef = useRef<LatLng | null>(null);
   const userOutsideCampusRef = useRef(false);
@@ -1471,10 +1487,6 @@ export function CampusMap() {
   }, [selected]);
 
   useEffect(() => {
-    relocatingRef.current = relocatingEntranceId;
-  }, [relocatingEntranceId]);
-
-  useEffect(() => {
     streetProfileRef.current = streetProfile;
   }, [streetProfile]);
 
@@ -1489,15 +1501,6 @@ export function CampusMap() {
   useEffect(() => {
     mockLocationActiveRef.current = mockLocationActive;
   }, [mockLocationActive]);
-
-  const entrances = useMemo<CampusEntrance[]>(
-    () =>
-      CAMPUS_ENTRANCES.map((entrance) => ({
-        ...entrance,
-        point: entranceOverrides[entrance.id] ?? entrance.point,
-      })),
-    [entranceOverrides],
-  );
 
   const html = useMemo(() => (initialTheme ? buildMapHtml(initialTheme) : null), [initialTheme]);
   useEffect(() => {
@@ -1638,7 +1641,6 @@ export function CampusMap() {
     async (
       from: LatLng,
       to: LatLng,
-      viaEntrance: LatLng | null = null,
       profile: StreetProfile = streetProfileRef.current,
       walkCost?: WalkCost,
     ) => {
@@ -1685,11 +1687,13 @@ export function CampusMap() {
           ? "Calculando ruta en carro…"
           : profile === "cycling-regular"
             ? "Calculando ruta en bici…"
-            : "Calculando ruta a pie…",
+            : profile === "driving-motorcycle"
+              ? "Calculando ruta en moto…"
+              : "Calculando ruta a pie…",
       );
 
       try {
-        const result = await routeHybrid(from, to, profile, viaEntrance, walkCost ?? "short");
+        const result = await routeHybrid(from, to, profile, walkCost ?? "short");
         if (requestId !== routeRequestRef.current) return;
         if (!result) {
           setRoute(null);
@@ -1715,8 +1719,10 @@ export function CampusMap() {
         setRoute(null);
         clearRouteLine();
         syncMarkers(from, to);
-        const message =
-          error instanceof Error ? error.message : "No se pudo calcular la ruta";
+        const raw = error instanceof Error ? error.message : "No se pudo calcular la ruta";
+        const message = /cancel|abort|timed?\s*out|network request failed|fetch failed/i.test(raw)
+          ? "El servicio de calles no respondió. Inténtalo de nuevo."
+          : raw;
         setRouteError(message);
         setStatus("");
       } finally {
@@ -1750,7 +1756,7 @@ export function CampusMap() {
   useEffect(() => {
     if (!dayRecalc || handledDayRecalc.current === dayRecalc) return;
     handledDayRecalc.current = dayRecalc;
-    void runRoute(dayRecalc.from, dayRecalc.to, null, "foot-walking", "short");
+    void runRoute(dayRecalc.from, dayRecalc.to, "foot-walking", "short");
   }, [dayRecalc, runRoute]);
 
   useEffect(() => {
@@ -1764,10 +1770,10 @@ export function CampusMap() {
     (next: StreetProfile) => {
       streetProfileRef.current = next;
       setStreetProfile(next);
-      if (preset || campusPickerOpen || !origin || !destination) return;
-      void runRoute(origin, destination, null, next);
+      if (preset || !origin || !destination) return;
+      void runRoute(origin, destination, next);
     },
-    [preset, campusPickerOpen, origin, destination, runRoute],
+    [preset, origin, destination, runRoute],
   );
 
   const runPreset = useCallback(
@@ -1870,29 +1876,6 @@ export function CampusMap() {
     [origin, originName, destinations, catalog, clearRouteLine, inject],
   );
 
-  const syncEntranceMarkers = useCallback(
-    (items: CampusEntrance[] | null) => {
-      const payload = JSON.stringify(
-        (items ?? []).map((e) => ({
-          longitude: e.point.longitude,
-          latitude: e.point.latitude,
-          name: e.name,
-        })),
-      );
-      inject(`
-        if (typeof window.setEntranceMarkers === 'function') {
-          window.setEntranceMarkers(${payload});
-        }
-      `);
-    },
-    [inject],
-  );
-
-  useEffect(() => {
-    if (campusPickerOpen) syncEntranceMarkers(entrances);
-    else syncEntranceMarkers(null);
-  }, [campusPickerOpen, entrances, syncEntranceMarkers]);
-
   const clearRouteUi = useCallback(() => {
     setOrigin(null);
     setDestination(null);
@@ -1902,8 +1885,6 @@ export function CampusMap() {
     setRoute(null);
     setRouteError(null);
     setAssistantError(null);
-    setCampusPickerOpen(false);
-    setRelocatingEntranceId(null);
     activeSlotRef.current = "origin";
     setActiveSlot("origin");
     setQuery("");
@@ -1914,7 +1895,6 @@ export function CampusMap() {
     setPickingSlot(null);
     setNightChoiceOpen(false);
     inject(`if (typeof window.clearRoute === 'function') window.clearRoute();`);
-    inject(`if (typeof window.setEntranceMarkers === 'function') window.setEntranceMarkers([]);`);
   }, [inject]);
 
   const reportUnreachableSpace = useCallback(() => {
@@ -2132,8 +2112,6 @@ export function CampusMap() {
       setUserLocation(point);
       setUserOutsideCampus(outside);
       setSelected(null);
-      setCampusPickerOpen(false);
-      setRelocatingEntranceId(null);
       setPickingSlot(null);
       setTab("map");
       setQuery("");
@@ -2161,7 +2139,7 @@ export function CampusMap() {
       syncMarkers(point, destination);
 
       if (outside) {
-        setStatus("Ubicación lista · elige Ir al campus");
+        setStatus("Ubicación lista · elige un destino");
       } else {
         setStatus("Ubicación en el campus · elige destino");
       }
@@ -2224,8 +2202,6 @@ export function CampusMap() {
     setUserLocation(point);
     setUserOutsideCampus(false);
     setSelected(null);
-    setCampusPickerOpen(false);
-    setRelocatingEntranceId(null);
     setOrigin(point);
     setOriginName("Ubicación de prueba");
     setQuery("");
@@ -2387,7 +2363,7 @@ export function CampusMap() {
       activeSlotRef.current = "destination";
       setActiveSlot("destination");
       setStatus("");
-      await runRoute(from, to, null, streetProfileRef.current);
+      await runRoute(from, to, streetProfileRef.current);
     } catch (error) {
       if (requestId !== assistantRequestRef.current) return;
       const message =
@@ -2404,49 +2380,6 @@ export function CampusMap() {
       }
     }
   }, [assistantLoading, routing, assistantPrompt, placeCatalog, destinations, runRoute, catalog]);
-
-  const openCampusPicker = useCallback(() => {
-    setCampusPickerOpen(true);
-    setRelocatingEntranceId(null);
-    setSelected(null);
-    setStatus("Elige una entrada");
-  }, []);
-
-  const closeCampusPicker = useCallback(() => {
-    setCampusPickerOpen(false);
-    setRelocatingEntranceId(null);
-    setStatus("");
-  }, []);
-
-  const startRelocateEntrance = useCallback((entranceId: string) => {
-    setRelocatingEntranceId(entranceId);
-    const entrance = CAMPUS_ENTRANCES.find((e) => e.id === entranceId);
-    setStatus(
-      entrance
-        ? `Toca el mapa para ubicar ${entrance.street}`
-        : "Toca el mapa para ubicar la entrada",
-    );
-  }, []);
-
-  const selectEntrance = useCallback(
-    async (entrance: CampusEntrance) => {
-      if (!userLocation) {
-        setRouteError("Primero detecta tu ubicación");
-        return;
-      }
-      setCampusPickerOpen(false);
-      setRelocatingEntranceId(null);
-      setDestination(entrance.point);
-      setDestinationName(entrance.name);
-      setOrigin(userLocation);
-      setOriginName("Mi ubicación");
-      activeSlotRef.current = "destination";
-      setActiveSlot("destination");
-      await runRoute(userLocation, entrance.point, entrance.point, streetProfile);
-    },
-    [userLocation, runRoute, streetProfile],
-  );
-
 
   const onMessage = useCallback(
     (event: WebViewMessageEvent) => {
@@ -2481,18 +2414,6 @@ export function CampusMap() {
           setThemeMenuOpen(false);
           if (typeof data.longitude === "number" && typeof data.latitude === "number") {
             const point = { longitude: data.longitude, latitude: data.latitude };
-            const relocatingId = relocatingRef.current;
-            if (relocatingId) {
-              setEntranceOverrides((prev) => ({ ...prev, [relocatingId]: point }));
-              setRelocatingEntranceId(null);
-              const entrance = CAMPUS_ENTRANCES.find((e) => e.id === relocatingId);
-              const lon = point.longitude.toFixed(7);
-              const lat = point.latitude.toFixed(7);
-              setStatus(
-                `${entrance?.street ?? "Entrada"} → lon ${lon}, lat ${lat} (cópialo a entrances.ts)`,
-              );
-              return;
-            }
             const slot = inTripRef.current && tabRef.current === "map" ? searchSlotRef.current : null;
             const bathroomCode =
               typeof data.bathroomEdificio === "string" && data.bathroomEdificio
@@ -2511,7 +2432,6 @@ export function CampusMap() {
             if (slot) {
               assignPoint(slot, point, target);
             } else if (target) {
-              setCampusPickerOpen(false);
               showPlace(target);
               setTab("map");
             } else {
@@ -2532,7 +2452,6 @@ export function CampusMap() {
     (tour: PresetRoute) => {
       setTab("map");
       setSelected(null);
-      setCampusPickerOpen(false);
       setPickingSlot(null);
       if (origin) {
         runPreset(tour);
@@ -2557,7 +2476,7 @@ export function CampusMap() {
     [catalog, destinations],
   );
 
-  const inTrip = Boolean(origin || destination || preset || pendingPreset || campusPickerOpen);
+  const inTrip = Boolean(origin || destination || preset || pendingPreset);
 
   const changeTab = useCallback((next: MapPanel) => {
     setQuery("");
@@ -2589,7 +2508,7 @@ export function CampusMap() {
 
   const searchSlot: RouteSlot | null = !inTrip
     ? "destination"
-    : campusPickerOpen || preset
+    : preset
       ? null
       : pickingSlot ??
         (!origin ? "origin" : !destination && !pendingPreset ? "destination" : null);
@@ -2793,26 +2712,21 @@ export function CampusMap() {
                         ? "en carro"
                         : route.profile === "cycling-regular"
                           ? "en bici"
-                          : "a pie",
+                          : route.profile === "driving-motorcycle"
+                            ? "en moto"
+                            : "a pie",
                     route.mode === "campus" ? null : route.entrance ? `vía ${route.entrance.street}` : null,
                   ]
                     .filter(Boolean)
                     .join(" · ")
           }
+          streetSourceLabel={route ? streetSourceLabel(route.streetSource) : null}
           nightChoiceOpen={nightChoiceOpen}
           onChooseWalkCost={(cost) => {
             if (!origin || !destination) return;
-            void runRoute(origin, destination, null, streetProfileRef.current, cost);
+            void runRoute(origin, destination, streetProfileRef.current, cost);
           }}
           error={routeError}
-          showGoToCampus={Boolean(userLocation && userOutsideCampus && !routing)}
-          campusPickerOpen={campusPickerOpen}
-          entrances={entrances}
-          relocatingEntranceId={relocatingEntranceId}
-          onOpenCampusPicker={openCampusPicker}
-          onCloseCampusPicker={closeCampusPicker}
-          onSelectEntrance={selectEntrance}
-          onRelocateEntrance={startRelocateEntrance}
           routing={routing}
           streetProfile={streetProfile}
           onStreetProfileChange={changeStreetProfile}

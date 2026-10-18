@@ -32,6 +32,7 @@ const SPACE_KIND_LABELS: Record<SpaceKind, string> = {
   bano: "Baño",
   parqueadero: "Parqueadero",
   parqueadero_bici: "Parqueadero de bicicletas",
+  parqueadero_moto: "Parqueadero de motos",
   cancha: "Cancha",
 };
 

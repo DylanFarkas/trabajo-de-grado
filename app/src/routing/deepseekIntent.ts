@@ -70,13 +70,13 @@ function buildSystemPrompt(catalog: PlaceCatalogEntry[]): string {
     "No inventes IDs. Solo usa ids de la lista.",
     "Resuelve alias comunes: biblioteca→Biblioteca Central, códigos como B13/E19, nombres de edificios.",
     "El catálogo también incluye espacios (parqueaderos, baños y canchas). Un espacio concreto se resuelve por su id, etiqueta o nombre: P9, Parqueadero 9.",
-    "Si piden el más cercano de un tipo sin nombrar uno (el parqueadero, un baño, la cancha, el parqueadero de bicicletas más cercano), destinationPlaceId=null y destinationSpaceKind es bano, parqueadero, parqueadero_bici o cancha. parqueadero es solo de carros; parqueadero_bici es el de bicicletas. Si nombran un parqueadero de bicicletas concreto, resuélvelo por su id. No elijas un edificio aunque su nombre contenga esa palabra.",
+    "Si piden el más cercano de un tipo sin nombrar uno (el parqueadero, un baño, la cancha, el parqueadero de bicicletas o de motos más cercano), destinationPlaceId=null y destinationSpaceKind es bano, parqueadero, parqueadero_bici, parqueadero_moto o cancha. parqueadero es solo de carros; parqueadero_bici es el de bicicletas; parqueadero_moto es el de motos (P14). Si nombran un parqueadero de bicicletas o de motos concreto, resuélvelo por su id. No elijas un edificio aunque su nombre contenga esa palabra.",
     "Si el destino es un sitio concreto, destinationSpaceKind=null.",
     "Si el usuario solo menciona destino, originPlaceId debe ser null.",
     "Si no puedes resolver el destino con confianza, destinationPlaceId=null, destinationSpaceKind=null y escribe clarification en español.",
-    "profile: foot-walking (pie, caminar), cycling-regular (bici, bicicleta, cicla) o driving-car (carro, auto); null si no se indica. Ir en bici a un lugar es profile=cycling-regular con ese lugar de destino, no el parqueadero de bicicletas.",
+    "profile: foot-walking (pie, caminar), cycling-regular (bici, bicicleta, cicla), driving-car (carro, auto) o driving-motorcycle (moto, motocicleta); null si no se indica. Ir en bici a un lugar es profile=cycling-regular con ese lugar de destino, no el parqueadero de bicicletas. En moto solo aplica al llegar al campus (deja la moto en P14); el asistente opera dentro del campus, así que si piden moto aclara que usen la ficha de ruta desde fuera.",
     "Responde SOLO JSON válido con esta forma exacta:",
-    '{"originPlaceId":string|null,"destinationPlaceId":string|null,"destinationSpaceKind":"bano"|"parqueadero"|"parqueadero_bici"|"cancha"|null,"profile":"foot-walking"|"cycling-regular"|"driving-car"|null,"confidence":number,"clarification":string|null}',
+    '{"originPlaceId":string|null,"destinationPlaceId":string|null,"destinationSpaceKind":"bano"|"parqueadero"|"parqueadero_bici"|"parqueadero_moto"|"cancha"|null,"profile":"foot-walking"|"cycling-regular"|"driving-car"|"driving-motorcycle"|null,"confidence":number,"clarification":string|null}',
     "",
     "Catálogo de lugares:",
     ...lines,
@@ -113,7 +113,12 @@ function asNullableString(value: unknown): string | null {
 }
 
 function asProfile(value: unknown): StreetProfile | null {
-  if (value === "foot-walking" || value === "driving-car" || value === "cycling-regular") {
+  if (
+    value === "foot-walking" ||
+    value === "driving-car" ||
+    value === "cycling-regular" ||
+    value === "driving-motorcycle"
+  ) {
     return value;
   }
   return null;
@@ -124,6 +129,7 @@ function asSpaceKind(value: unknown): SpaceKind | null {
     value === "bano" ||
     value === "parqueadero" ||
     value === "parqueadero_bici" ||
+    value === "parqueadero_moto" ||
     value === "cancha"
   ) {
     return value;
@@ -213,7 +219,7 @@ function applyNearestSpaceHint(userText: string, intent: RouteIntent): RouteInte
   const text = normalizeSearchText(userText);
   if (!/mas cercan|mas proxim/.test(text)) return intent;
   if (
-    /desde\s+(el|la|un|una)?\s*(parqueadero|cicloparqueadero|bano|cancha)(\s+de\s+(bicicletas?|bicis?|ciclas?))?\s+mas\s+(cercan|proxim)/.test(
+    /desde\s+(el|la|un|una)?\s*(parqueadero|cicloparqueadero|bano|cancha)(\s+de\s+(bicicletas?|bicis?|ciclas?|motos?))?\s+mas\s+(cercan|proxim)/.test(
       text,
     )
   ) {
@@ -223,6 +229,8 @@ function applyNearestSpaceHint(userText: string, intent: RouteIntent): RouteInte
   let spaceKind: SpaceKind | null = null;
   if (/\b(parqueadero|cicloparqueadero)\b.*\b(bicicletas?|bicis?|ciclas?)\b|\bcicloparqueadero\b/.test(text)) {
     spaceKind = "parqueadero_bici";
+  } else if (/\bparqueadero\b.*\bmotos?\b|\bparqueadero_moto\b/.test(text)) {
+    spaceKind = "parqueadero_moto";
   } else if (/\bparqueadero\b/.test(text) && !/\bparqueadero\s+\d+\b/.test(text) && !/\bp\d+\b/.test(text)) {
     spaceKind = "parqueadero";
   } else if (/\bbano\b/.test(text)) {

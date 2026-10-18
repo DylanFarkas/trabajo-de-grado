@@ -3,7 +3,6 @@ import { ActivityIndicator, Pressable, Text, View } from "react-native";
 
 import { Icon } from "@/components/Icon";
 import { SnapSheet } from "@/components/SnapSheet";
-import type { CampusEntrance } from "@/constants/entrances";
 import type { WalkCost } from "@/routing/graph";
 import type { StreetProfile } from "@/routing/openRouteService";
 
@@ -23,18 +22,11 @@ type RouteSheetProps = {
   distanceLabel: string | null;
   durationLabel: string | null;
   routeMeta: string | null;
+  streetSourceLabel?: string | null;
   error: string | null;
   routing?: boolean;
   locating?: boolean;
   onUseMyLocation?: () => void;
-  showGoToCampus?: boolean;
-  campusPickerOpen?: boolean;
-  entrances?: CampusEntrance[];
-  relocatingEntranceId?: string | null;
-  onOpenCampusPicker?: () => void;
-  onCloseCampusPicker?: () => void;
-  onSelectEntrance?: (entrance: CampusEntrance) => void;
-  onRelocateEntrance?: (entranceId: string) => void;
   streetProfile?: StreetProfile;
   onStreetProfileChange?: (profile: StreetProfile) => void;
   nightChoiceOpen?: boolean;
@@ -55,51 +47,64 @@ function ModeToggle({
   onChange?: (profile: StreetProfile) => void;
   disabled?: boolean;
 }) {
-  const options: {
+  const rows: {
     id: StreetProfile;
     label: string;
-    icon: "directions-walk" | "directions-car" | "directions-bike";
-  }[] = [
-    { id: "foot-walking", label: "A pie", icon: "directions-walk" },
-    { id: "cycling-regular", label: "En bici", icon: "directions-bike" },
-    { id: "driving-car", label: "En carro", icon: "directions-car" },
+    icon: "directions-walk" | "directions-car" | "directions-bike" | "two-wheeler";
+  }[][] = [
+    [
+      { id: "foot-walking", label: "A pie", icon: "directions-walk" },
+      { id: "cycling-regular", label: "En bici", icon: "directions-bike" },
+    ],
+    [
+      { id: "driving-car", label: "En carro", icon: "directions-car" },
+      { id: "driving-motorcycle", label: "En moto", icon: "two-wheeler" },
+    ],
   ];
   return (
     <View
-      className={`mb-4 flex-row rounded-2xl bg-[#f2f2f4] p-1 dark:bg-[#1a212c] ${disabled ? "opacity-50" : ""}`}
+      className={`mb-4 rounded-2xl bg-[#f2f2f4] p-1 dark:bg-[#1a212c] ${disabled ? "opacity-50" : ""}`}
       accessibilityRole="tablist"
     >
-      {options.map((option) => {
-        const on = value === option.id;
-        return (
-          <Pressable
-            key={option.id}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: on }}
-            accessibilityLabel={option.label}
-            disabled={disabled}
-            onPress={() => onChange?.(option.id)}
-            className={`h-11 flex-1 flex-row items-center justify-center rounded-xl active:opacity-80 ${
-              on ? "bg-white shadow-sm dark:bg-[#2a3342]" : ""
-            }`}
-          >
-            <Icon
-              name={option.icon}
-              size={18}
-              colorClassName={
-                on ? "accent-[#111111] dark:accent-[#f2f4f7]" : "accent-[#8e8e93] dark:accent-[#7b8594]"
-              }
-            />
-            <Text
-              className={`ml-2 text-sm font-bold ${
-                on ? "text-[#111111] dark:text-[#f2f4f7]" : "text-[#8e8e93] dark:text-[#7b8594]"
-              }`}
-            >
-              {option.label}
-            </Text>
-          </Pressable>
-        );
-      })}
+      {rows.map((row, rowIndex) => (
+        <View key={rowIndex} className={`flex-row ${rowIndex > 0 ? "mt-1" : ""}`}>
+          {row.map((option) => {
+            const on = value === option.id;
+            return (
+              <Pressable
+                key={option.id}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: on }}
+                accessibilityLabel={option.label}
+                disabled={disabled}
+                onPress={() => onChange?.(option.id)}
+                className={`h-11 flex-1 flex-row items-center justify-center rounded-xl active:opacity-80 ${
+                  on ? "bg-white shadow-sm dark:bg-[#2a3342]" : ""
+                }`}
+              >
+                <Icon
+                  name={option.icon}
+                  size={18}
+                  colorClassName={
+                    on
+                      ? "accent-[#111111] dark:accent-[#f2f4f7]"
+                      : "accent-[#8e8e93] dark:accent-[#7b8594]"
+                  }
+                />
+                <Text
+                  className={`ml-2 text-sm font-bold ${
+                    on
+                      ? "text-[#111111] dark:text-[#f2f4f7]"
+                      : "text-[#8e8e93] dark:text-[#7b8594]"
+                  }`}
+                >
+                  {option.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      ))}
     </View>
   );
 }
@@ -185,17 +190,11 @@ export function RouteSheet({
   distanceLabel,
   durationLabel,
   routeMeta,
+  streetSourceLabel = null,
   error,
   routing = false,
   locating = false,
   onUseMyLocation,
-  showGoToCampus = false,
-  campusPickerOpen = false,
-  entrances = [],
-  relocatingEntranceId = null,
-  onOpenCampusPicker,
-  onCloseCampusPicker,
-  onSelectEntrance,
   streetProfile = "foot-walking",
   onStreetProfileChange,
   nightChoiceOpen = false,
@@ -211,20 +210,15 @@ export function RouteSheet({
 
   useEffect(() => {
     setExpanded(true);
-  }, [searchSlot, campusPickerOpen, showGoToCampus, presetName, pendingPresetName, error, nightChoiceOpen]);
+  }, [searchSlot, presetName, pendingPresetName, error, nightChoiceOpen]);
 
-  const title = campusPickerOpen
-    ? "Entradas al campus"
-    : presetName ??
-      pendingPresetName ??
-      (nightChoiceOpen ? "¿Cómo quieres ir?" : destinationName ? `Ir a ${destinationName}` : "Tu ruta");
+  const title =
+    presetName ??
+    pendingPresetName ??
+    (nightChoiceOpen ? "¿Cómo quieres ir?" : destinationName ? `Ir a ${destinationName}` : "Tu ruta");
 
-  const summary = campusPickerOpen
-    ? relocatingEntranceId
-      ? "Toca el mapa para colocar la entrada"
-      : "Elige por cuál entrada llegar"
-    : nightChoiceOpen
-      ? "De noche puedes elegir"
+  const summary = nightChoiceOpen
+    ? "De noche puedes elegir"
     : routing
       ? "Calculando la mejor ruta…"
       : distanceLabel
@@ -250,17 +244,6 @@ export function RouteSheet({
       onExpandedChange={setExpanded}
       header={({ toggle }) => (
         <View className="flex-row items-center">
-          {campusPickerOpen ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Volver"
-              onPress={onCloseCampusPicker}
-              hitSlop={8}
-              className="mr-2 size-8 items-center justify-center rounded-full bg-[#f2f2f4] active:opacity-80 dark:bg-[#1f2632]"
-            >
-              <Icon name="arrow-back" size={18} colorClassName="accent-[#111111] dark:accent-[#f2f4f7]" />
-            </Pressable>
-          ) : null}
           <Pressable
             accessible={false}
             onPress={toggle}
@@ -269,22 +252,33 @@ export function RouteSheet({
             <Text className="text-lg font-bold tracking-tight text-[#111111] dark:text-[#f2f4f7]" numberOfLines={1}>
               {title}
             </Text>
-            <View className="mt-0.5 flex-row items-center">
-              {routing ? (
-                <ActivityIndicator size="small" colorClassName="accent-[#8e8e93] dark:accent-[#8b95a5]" />
-              ) : null}
-              <Text
-                className={`text-[13px] mb-2 ${
-                  distanceLabel
-                    ? "font-semibold text-[#1d4ed8] dark:text-[#7cb2ff]"
-                    : "text-[#8e8e93] dark:text-[#8b95a5]"
-                } ${
-                  routing ? "ml-2" : ""
-                }`}
-                numberOfLines={2}
-              >
-                {summary}
-              </Text>
+            <View className="mt-0.5">
+              <View className="flex-row items-center">
+                {routing ? (
+                  <ActivityIndicator size="small" colorClassName="accent-[#8e8e93] dark:accent-[#8b95a5]" />
+                ) : null}
+                <Text
+                  className={`min-w-0 flex-1 text-[13px] ${
+                    distanceLabel
+                      ? "font-semibold text-[#1d4ed8] dark:text-[#7cb2ff]"
+                      : "text-[#8e8e93] dark:text-[#8b95a5]"
+                  } ${
+                    routing ? "ml-2" : ""
+                  }`}
+                  numberOfLines={2}
+                >
+                  {summary}
+                </Text>
+              </View>
+              {streetSourceLabel ? (
+                <View className="mb-2 mt-1.5 self-start rounded-full bg-[#eef2ff] px-2.5 py-1 dark:bg-[#1b2433]">
+                  <Text className="text-[11px] font-bold uppercase tracking-wide text-[#1d4ed8] dark:text-[#93c5fd]">
+                    {streetSourceLabel}
+                  </Text>
+                </View>
+              ) : (
+                <View className="mb-2" />
+              )}
             </View>
           </Pressable>
           <Pressable
@@ -312,36 +306,7 @@ export function RouteSheet({
         </View>
       )}
     >
-      {campusPickerOpen ? (
-        <View>
-          <ModeToggle value={streetProfile} onChange={onStreetProfileChange} disabled={routing} />
-          {entrances.map((entrance, index) => (
-            <Pressable
-              key={entrance.id}
-              accessibilityRole="button"
-              accessibilityLabel={`Ir por ${entrance.name}`}
-              disabled={routing}
-              onPress={() => onSelectEntrance?.(entrance)}
-              className="mb-2 flex-row items-center rounded-2xl bg-[#f7f7f8] px-4 py-3 active:opacity-80 dark:bg-[#18202a]"
-            >
-              <View className="mr-3 size-8 items-center justify-center rounded-full bg-[#111111] dark:bg-[#f2f4f7]">
-                <Text className="text-sm font-extrabold text-white dark:text-[#0b0f16]">{index + 1}</Text>
-              </View>
-              <Text
-                className="mr-3 min-w-0 flex-1 text-[15px] font-semibold text-[#111111] dark:text-[#f2f4f7]"
-                numberOfLines={1}
-              >
-                {entrance.name}
-              </Text>
-              {routing ? (
-                <ActivityIndicator size="small" colorClassName="accent-[#111111] dark:accent-[#f2f4f7]" />
-              ) : (
-                <Icon name="arrow-forward" size={20} colorClassName="accent-[#111111] dark:accent-[#f2f4f7]" />
-              )}
-            </Pressable>
-          ))}
-        </View>
-      ) : hasPreset ? (
+      {hasPreset ? (
         <View>
           {presetStops!.map((stop, index) => {
             const last = index === presetStops!.length - 1;
@@ -485,22 +450,6 @@ export function RouteSheet({
             <Text className="mt-3 text-center font-sans text-xs text-[#8e8e93] dark:text-[#8b95a5]">
               Búscalo arriba o toca un lugar en el mapa
             </Text>
-          ) : null}
-
-          {showGoToCampus ? (
-            <View className="mt-4">
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Ir al campus"
-                onPress={onOpenCampusPicker}
-                className="h-12 items-center justify-center rounded-2xl bg-[#111111] active:opacity-80 dark:bg-[#f2f4f7]"
-              >
-                <Text className="text-[15px] font-bold text-white dark:text-[#0b0f16]">Ir al campus</Text>
-              </Pressable>
-              <Text className="mt-2 text-center font-sans text-xs text-[#8e8e93] dark:text-[#8b95a5]">
-                Luego elige Carrera 86, Calle 16 o Calle 13
-              </Text>
-            </View>
           ) : null}
         </View>
       )}

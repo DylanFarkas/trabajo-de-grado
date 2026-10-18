@@ -213,8 +213,8 @@
       "type": "Feature",
       "properties": {
         "id": "p14",
-        "nombre": "Parqueadero 14",
-        "tipo": "parqueadero",
+        "nombre": "Parqueadero de motos 14",
+        "tipo": "parqueadero_moto",
         "edificio": null,
         "notas": null,
         "etiqueta": "P14",

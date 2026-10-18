@@ -44,7 +44,12 @@ export type LampPostKind = "vial" | "peatonal";
 export type LampPostStatus = "funciona" | "dañado" | "sin_verificar";
 
 /** Tipo fijo del espacio. La ruta “más cercana” filtra por esto, no por una categoría del admin. */
-export type SpaceKind = "bano" | "parqueadero" | "parqueadero_bici" | "cancha";
+export type SpaceKind =
+  | "bano"
+  | "parqueadero"
+  | "parqueadero_bici"
+  | "parqueadero_moto"
+  | "cancha";
 
 /** Público de un baño dentro de un edificio. */
 export type BathroomAudience = "hombres" | "mujeres" | "mixto";
