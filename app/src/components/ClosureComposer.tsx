@@ -145,8 +145,8 @@ export function ClosureComposer({
                 onPress={onSeeMine}
                 className="mt-8 h-12 w-full flex-row items-center justify-center rounded-2xl bg-[#111111] active:opacity-80"
               >
-                <MaterialIcons name="person-outline" size={18} color="#ffffff" />
-                <Text className="ml-2 text-[15px] font-bold text-white">Ver el estado en mi perfil</Text>
+                <MaterialIcons name="flag" size={18} color="#ffffff" />
+                <Text className="ml-2 text-[15px] font-bold text-white">Ver mis reportes</Text>
               </Pressable>
             ) : null}
             <Pressable

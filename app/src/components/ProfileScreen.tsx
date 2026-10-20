@@ -15,7 +15,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useAuth } from "@/auth";
 import { MyContributions } from "@/components/MyContributions";
-import { MyReports } from "@/components/MyReports";
 import { useMapPanel } from "@/map-panel";
 
 type AuthMode = "login" | "register";
@@ -205,8 +204,6 @@ export function ProfileScreen() {
             {error ? <ErrorBox message={error} /> : null}
 
             <MyContributions userId={profile.id} />
-
-            <MyReports userId={profile.id} />
 
             <Pressable
               accessibilityRole="button"

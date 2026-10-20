@@ -42,12 +42,12 @@ function ReportCard({ item }: { item: MyReport }) {
   const status = effectiveStatus(item);
   const badge = BADGE[status];
   return (
-    <View className="mb-3 rounded-3xl border border-[#f0f0f2] bg-white p-4">
+    <View className="mb-3 rounded-3xl border border-[#f0f0f2] bg-white p-4 dark:border-[#232c3a] dark:bg-[#18202a]">
       <View className="flex-row items-center">
-        <View className="size-8 items-center justify-center rounded-xl bg-[#f2f2f4]">
-          <MaterialIcons name="block" size={16} color="#111111" />
+        <View className="size-8 items-center justify-center rounded-xl bg-[#f2f2f4] dark:bg-[#232c3a]">
+          <MaterialIcons name="block" size={16} color="#b42318" />
         </View>
-        <Text className="ml-2.5 min-w-0 flex-1 pr-2 text-[14px] font-bold text-[#111111]" numberOfLines={1}>
+        <Text className="ml-2.5 min-w-0 flex-1 pr-2 text-[14px] font-bold text-[#111111] dark:text-[#f2f4f7]" numberOfLines={1}>
           {categoryLabel(item.category)} · {item.segmentCount === 1 ? "1 tramo" : `${item.segmentCount} tramos`}
         </Text>
         <View className="h-6 flex-row items-center rounded-full px-2" style={{ backgroundColor: badge.bg }}>
@@ -58,7 +58,7 @@ function ReportCard({ item }: { item: MyReport }) {
         </View>
       </View>
 
-      <Text className="mt-3 font-sans text-[15px] leading-5.5 text-[#2c2c2e]" numberOfLines={4}>
+      <Text className="mt-3 font-sans text-[15px] leading-5.5 text-[#2c2c2e] dark:text-[#c5ccd6]" numberOfLines={4}>
         {item.description}
       </Text>
 
@@ -69,7 +69,7 @@ function ReportCard({ item }: { item: MyReport }) {
         </View>
       ) : null}
 
-      <Text className="mt-3 font-sans text-[12px] text-[#8e8e93]">
+      <Text className="mt-3 font-sans text-[12px] text-[#8e8e93] dark:text-[#8b95a5]">
         {formatDate(item.createdAt)}
         {item.onSite ? " · reportado en el sitio" : " · reportado a distancia"}
         {GROUP_OF[status] !== "done" ? ` · ${item.confirmScore} a favor, ${item.denyScore} en contra` : ""}
@@ -114,16 +114,16 @@ export function MyReports({ userId }: { userId: string }) {
   return (
     <View className="mt-8">
       <View className="mb-3 flex-row items-center justify-between">
-        <Text className="text-[17px] font-bold tracking-tight text-[#111111]">Mis reportes de vías</Text>
+        <Text className="text-[17px] font-bold tracking-tight text-[#111111] dark:text-[#f2f4f7]">Mis reportes</Text>
         {items && items.length > 0 ? (
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Actualizar reportes"
             onPress={() => setReloads((count) => count + 1)}
             hitSlop={8}
-            className="size-8 items-center justify-center rounded-full bg-[#f2f2f4] active:opacity-80"
+            className="size-8 items-center justify-center rounded-full bg-[#f2f2f4] active:opacity-80 dark:bg-[#232c3a]"
           >
-            <MaterialIcons name="refresh" size={18} color="#3a3a3c" />
+            <MaterialIcons name="refresh" size={18} color="#8b95a5" />
           </Pressable>
         ) : null}
       </View>
@@ -133,13 +133,13 @@ export function MyReports({ userId }: { userId: string }) {
           <ActivityIndicator size="small" color="#111111" />
         </View>
       ) : items.length === 0 ? (
-        <View className="items-center rounded-3xl bg-[#f7f7f9] px-6 py-8">
-          <View className="size-14 items-center justify-center rounded-full bg-white">
-            <MaterialIcons name="block" size={28} color="#3a3a3c" />
+        <View className="items-center rounded-3xl bg-[#f7f7f9] px-6 py-8 dark:bg-[#18202a]">
+          <View className="size-14 items-center justify-center rounded-full bg-white dark:bg-[#232c3a]">
+            <MaterialIcons name="block" size={28} color="#b42318" />
           </View>
-          <Text className="mt-4 text-center text-[15px] font-bold text-[#111111]">Aún no has reportado vías</Text>
-          <Text className="mt-1 text-center font-sans text-[13px] leading-5 text-[#6e6e73]">
-            Si encuentras un camino cerrado, toca el botón rojo del mapa y marca el tramo.
+          <Text className="mt-4 text-center text-[15px] font-bold text-[#111111] dark:text-[#f2f4f7]">Aún no has reportado vías</Text>
+          <Text className="mt-1 text-center font-sans text-[13px] leading-5 text-[#6e6e73] dark:text-[#8b95a5]">
+            Si encuentras un camino cerrado, elige «Vía cerrada» arriba y marca el tramo en el mapa.
           </Text>
         </View>
       ) : (
@@ -155,14 +155,14 @@ export function MyReports({ userId }: { userId: string }) {
                   accessibilityLabel={`${group.plural}: ${counts[group.id]}`}
                   onPress={() => setFilter(active ? null : group.id)}
                   className={`flex-1 rounded-2xl px-3 py-3 ${index > 0 ? "ml-2" : ""} ${
-                    active ? "bg-[#111111]" : "bg-[#f5f5f7]"
+                    active ? "bg-[#111111] dark:bg-[#f2f4f7]" : "bg-[#f5f5f7] dark:bg-[#18202a]"
                   }`}
                 >
-                  <Text className={`text-[22px] font-extrabold ${active ? "text-white" : "text-[#111111]"}`}>
+                  <Text className={`text-[22px] font-extrabold ${active ? "text-white dark:text-[#0b0f16]" : "text-[#111111] dark:text-[#f2f4f7]"}`}>
                     {counts[group.id]}
                   </Text>
                   <Text
-                    className={`mt-0.5 text-[12px] font-semibold ${active ? "text-white/70" : "text-[#6e6e73]"}`}
+                    className={`mt-0.5 text-[12px] font-semibold ${active ? "text-white/70 dark:text-[#0b0f16]/60" : "text-[#6e6e73] dark:text-[#8b95a5]"}`}
                     numberOfLines={1}
                   >
                     {group.plural}

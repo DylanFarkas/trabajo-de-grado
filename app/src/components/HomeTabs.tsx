@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Icon } from "@/components/Icon";
 import { useMapPanel } from "@/map-panel";
 
-export type HomeTab = "map" | "tours" | "assistant" | "profile";
+export type HomeTab = "map" | "tours" | "reports" | "assistant" | "profile";
 
 const TAB_CONTENT_HEIGHT = 56;
 const TAB_TOP_PADDING = 8;
@@ -12,11 +12,12 @@ const TAB_TOP_PADDING = 8;
 const TABS: {
   id: HomeTab;
   label: string;
-  icon: "map" | "route" | "auto-awesome" | "person";
+  icon: "map" | "route" | "flag" | "auto-awesome" | "person";
 }[] = [
   { id: "map", label: "Mapa", icon: "map" },
   { id: "tours", label: "Recorridos", icon: "route" },
   { id: "assistant", label: "Asistente", icon: "auto-awesome" },
+  { id: "reports", label: "Reportes", icon: "flag" },
   { id: "profile", label: "Perfil", icon: "person" },
 ];
 

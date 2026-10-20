@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Keyboard, useWindowDimensions, View } from "react-native";
+import { Keyboard, Text, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import WebView, { type WebViewMessageEvent } from "react-native-webview";
 import { withUniwind } from "uniwind";
@@ -71,6 +71,7 @@ import { homeTabBarHeight } from "@/components/HomeTabs";
 import { MapControls } from "@/components/MapControls";
 import { RouteSheet, type RouteClosureNotice, type RouteSlot } from "@/components/RouteSheet";
 import { useSheetPresence } from "@/components/SnapSheet";
+import { ReportsSheet } from "@/components/ReportsSheet";
 import { ToursSheet } from "@/components/ToursSheet";
 import { ClosureComposer } from "@/components/ClosureComposer";
 import { ClosureDetail } from "@/components/ClosureDetail";
@@ -1724,6 +1725,7 @@ export function CampusMap() {
   const userId = profile?.id ?? null;
   const { closures, myVotes, report: reportClosureNow, vote: voteClosureNow } = useCampusClosures(userId);
   const [reportMode, setReportMode] = useState(false);
+  const [reportPanelHeight, setReportPanelHeight] = useState(0);
   const [draftKeys, setDraftKeys] = useState<SegmentKey[]>([]);
   const [reportHint, setReportHint] = useState<string | null>(null);
   const [composerOpen, setComposerOpen] = useState(false);
@@ -2801,14 +2803,26 @@ export function CampusMap() {
       return;
     }
     Keyboard.dismiss();
+    setTab("map");
     setSelected(null);
     setDraftKeys([]);
     setReportHint(null);
     setReportMode(true);
-  }, [userId, setProfileOpen]);
+  }, [userId, setProfileOpen, setTab]);
 
   const cancelReport = useCallback(() => {
     setReportMode(false);
+    setReportPanelHeight(0);
+    setDraftKeys([]);
+    setReportHint(null);
+  }, []);
+
+  const undoDraftSegment = useCallback(() => {
+    setDraftKeys((current) => current.slice(0, -1));
+    setReportHint(null);
+  }, []);
+
+  const clearDraftSegments = useCallback(() => {
     setDraftKeys([]);
     setReportHint(null);
   }, []);
@@ -2861,6 +2875,11 @@ export function CampusMap() {
     if (names.length === 0) return null;
     const count = draftKeys.length === 1 ? "1 tramo" : `${draftKeys.length} tramos`;
     return `${names.slice(0, 2).join(", ")} · ${count}`;
+  }, [draftKeys]);
+
+  const draftPlaceLabel = useMemo(() => {
+    const names = [...new Set(draftKeys.map((key) => campusSegment(key)?.name).filter(Boolean))];
+    return names.length > 0 ? names.slice(0, 2).join(", ") : null;
   }, [draftKeys]);
 
   const submitReport = useCallback(
@@ -3086,6 +3105,8 @@ export function CampusMap() {
   const inTrip = Boolean(origin || destination || preset || pendingPreset);
 
   const changeTab = useCallback((next: MapPanel) => {
+    // Mientras se eligen tramos, la barra inferior no debe tapar el modo reporte.
+    if (reportMode) return;
     setQuery("");
     Keyboard.dismiss();
 
@@ -3094,7 +3115,7 @@ export function CampusMap() {
         closeAssistant();
         return;
       }
-      if (tab === "tours") {
+      if (tab === "tours" || tab === "reports") {
         setTab("map");
         return;
       }
@@ -3109,7 +3130,7 @@ export function CampusMap() {
     }
 
     setTab(next);
-  }, [tab, selected, inTrip, closeAssistant, clearRouteUi, setTab]);
+  }, [reportMode, tab, selected, inTrip, closeAssistant, clearRouteUi, setTab]);
 
   useEffect(() => registerSelectMapTab(changeTab), [registerSelectMapTab, changeTab]);
 
@@ -3122,7 +3143,7 @@ export function CampusMap() {
   inTripRef.current = inTrip;
   searchSlotRef.current = searchSlot;
 
-  const showSearch = tab === "map" && !selected && searchSlot != null;
+  const showSearch = tab === "map" && !selected && searchSlot != null && !reportMode;
   const searchPlaceholder =
     searchSlot === "origin"
       ? "¿Desde dónde sales?"
@@ -3144,11 +3165,13 @@ export function CampusMap() {
 
   const exploreActive = tab === "map" && Boolean(placePreview);
   const toursActive = tab === "tours";
+  const reportsActive = tab === "reports";
   const assistantActive = tab === "assistant";
   const routeActive = tab === "map" && !placePreview && inTrip;
-  const anySheetActive = exploreActive || toursActive || assistantActive || routeActive;
+  const anySheetActive = exploreActive || toursActive || reportsActive || assistantActive || routeActive;
   const exploreSheet = useSheetPresence(exploreActive);
   const toursSheet = useSheetPresence(toursActive);
+  const reportsSheet = useSheetPresence(reportsActive);
   const assistantSheet = useSheetPresence(assistantActive);
   const routeSheet = useSheetPresence(routeActive);
   const shownPlace = placePreview ?? (exploreSheet.mounted ? lastPlacePreview.current : null);
@@ -3156,7 +3179,7 @@ export function CampusMap() {
   const tabBarHeight = homeTabBarHeight(insets.bottom);
   const headerBlock = insets.top + (showSearch ? 72 : 16);
   const sheetMaxHeight = Math.max(260, windowHeight - headerBlock - tabBarHeight - 72);
-  const chromeBottom = panelHeight;
+  const chromeBottom = reportMode ? reportPanelHeight : panelHeight;
   chromeBottomRef.current = chromeBottom;
 
   useEffect(() => {
@@ -3187,16 +3210,30 @@ export function CampusMap() {
         <View className="flex-1" />
       )}
 
-      <MapHeader
-        topInset={insets.top}
-        status={status}
-        showSearch={showSearch}
-        query={query}
-        onQueryChange={setQuery}
-        results={results}
-        onSelectResult={chooseSearchResult}
-        placeholder={searchPlaceholder}
-      />
+      {reportMode ? null : (
+        <MapHeader
+          topInset={insets.top}
+          status={status}
+          showSearch={showSearch}
+          query={query}
+          onQueryChange={setQuery}
+          results={results}
+          onSelectResult={chooseSearchResult}
+          placeholder={searchPlaceholder}
+        />
+      )}
+
+      {reportMode && status ? (
+        <View
+          className="absolute left-0 right-0 z-40 items-center"
+          style={{ top: insets.top + 66 }}
+          pointerEvents="none"
+        >
+          <View className="flex-row items-center rounded-full bg-white/95 px-3 py-2 shadow-[0_6px_16px_rgba(17,17,17,0.1)] dark:bg-[#161d27]/95">
+            <Text className="text-[13px] font-semibold text-[#111111] dark:text-[#f2f4f7]">{status}</Text>
+          </View>
+        </View>
+      ) : null}
 
       {reportMode ? null : (
         <MapControls
@@ -3211,25 +3248,29 @@ export function CampusMap() {
           themeMenuOpen={themeMenuOpen}
           onThemeMenuOpenChange={setThemeMenuOpen}
           onThemeModeChange={setThemeMode}
-          onReportClosure={startReport}
         />
       )}
 
       {reportMode ? (
         <ClosureReportBar
           top={insets.top + 8}
+          bottom={12}
           selectedCount={draftKeys.length}
           maxSegments={CLOSURE_MAX_SEGMENTS}
           hint={reportHint}
+          placeLabel={draftPlaceLabel}
           onCancel={cancelReport}
           onContinue={openComposer}
+          onUndo={undoDraftSegment}
+          onClear={clearDraftSegments}
+          onHeight={setReportPanelHeight}
         />
       ) : null}
 
       {promptClosure ? (
         <ClosurePromptCard
           key={promptClosure.closure.id}
-          bottom={Math.max(chromeBottom, tabBarHeight) + 12}
+          bottom={chromeBottom + 12}
           closure={promptClosure.closure}
           distanceM={promptClosure.distanceM}
           simulated={position?.isSimulated ?? true}
@@ -3253,7 +3294,7 @@ export function CampusMap() {
         onClose={closeComposer}
         onSeeMine={() => {
           closeComposer();
-          setProfileOpen(true);
+          setTab("reports");
         }}
       />
 
@@ -3309,6 +3350,30 @@ export function CampusMap() {
           activeName={preset?.name ?? pendingPreset?.name ?? null}
           stopName={stopName}
           onStart={startTour}
+        />
+      ) : null}
+
+      {reportsSheet.mounted ? (
+        <ReportsSheet
+          bottomOffset={0}
+          maxHeight={Math.min(sheetMaxHeight, windowHeight * 0.72)}
+          onHeight={
+            reportsActive || (!anySheetActive && reportsSheet.mounted) ? setPanelHeight : undefined
+          }
+          visible={reportsSheet.visible}
+          onExited={reportsSheet.onExited}
+          signedIn={userId != null}
+          userId={userId}
+          closures={closures}
+          onCreateRoadClosure={startReport}
+          onOpenClosure={(closureId) => {
+            setTab("map");
+            setDetailId(closureId);
+          }}
+          onSignIn={() => {
+            setTab("map");
+            setProfileOpen(true);
+          }}
         />
       ) : null}
 

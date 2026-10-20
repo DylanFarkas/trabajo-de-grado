@@ -10,7 +10,7 @@ import {
 
 import type { CatalogTone } from "@/places";
 
-export type MapPanel = "map" | "tours" | "assistant";
+export type MapPanel = "map" | "tours" | "reports" | "assistant";
 
 export type PlaceDetailsTarget = {
   code: string;
