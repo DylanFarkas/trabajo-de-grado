@@ -444,6 +444,323 @@
         "type": "Point",
         "coordinates": [-76.5298, 3.37566]
       }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "c10",
+        "nombre": "Cancha de fútbol C10",
+        "tipo": "cancha",
+        "edificio": null,
+        "notas": null,
+        "etiqueta": "C10",
+        "centro": [-76.5325825, 3.3718601]
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-76.5328631, 3.3713885],
+            [-76.5323009, 3.3713894],
+            [-76.5323024, 3.3723316],
+            [-76.5328647, 3.3723307],
+            [-76.5328631, 3.3713885]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "c11",
+        "nombre": "Cancha de fútbol C11",
+        "tipo": "cancha",
+        "edificio": null,
+        "notas": null,
+        "etiqueta": "C11",
+        "centro": [-76.5318639, 3.3718733]
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-76.5321653, 3.3723223],
+            [-76.5315614, 3.3723225],
+            [-76.531561, 3.3714243],
+            [-76.532165, 3.3714241],
+            [-76.5321653, 3.3723223]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "c12",
+        "nombre": "Cancha de fútbol C12",
+        "tipo": "cancha",
+        "edificio": null,
+        "notas": null,
+        "etiqueta": "C12",
+        "centro": [-76.5313548, 3.3716351]
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-76.5314993, 3.3718957],
+            [-76.5312134, 3.3718961],
+            [-76.5312128, 3.3713746],
+            [-76.5314986, 3.3713743],
+            [-76.5314993, 3.3718957]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "c13",
+        "nombre": "Cancha de fútbol C13",
+        "tipo": "cancha",
+        "edificio": null,
+        "notas": null,
+        "etiqueta": "C13",
+        "centro": [-76.5310427, 3.3716353]
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-76.5311933, 3.3718962],
+            [-76.5309074, 3.3718966],
+            [-76.5309068, 3.3713751],
+            [-76.5311927, 3.3713747],
+            [-76.5311933, 3.3718962]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "c14",
+        "nombre": "Cancha de fútbol C14",
+        "tipo": "cancha",
+        "edificio": null,
+        "notas": null,
+        "etiqueta": "C14",
+        "centro": [-76.5311181, 3.3706985]
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-76.5313836, 3.3711672],
+            [-76.5308546, 3.3711678],
+            [-76.5308535, 3.3702297],
+            [-76.5313825, 3.3702292],
+            [-76.5313836, 3.3711672]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "c15",
+        "nombre": "Cancha de fútbol C15",
+        "tipo": "cancha",
+        "edificio": null,
+        "notas": null,
+        "etiqueta": "C15",
+        "centro": [-76.5316567, 3.3708445]
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-76.5318465, 3.371164],
+            [-76.5314645, 3.371164],
+            [-76.5314644, 3.3705249],
+            [-76.5318465, 3.3705248],
+            [-76.5318465, 3.371164]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "c16",
+        "nombre": "Cancha de fútbol C16",
+        "tipo": "cancha",
+        "edificio": null,
+        "notas": null,
+        "etiqueta": "C16",
+        "centro": [-76.5320784, 3.3708361]
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-76.5322727, 3.3711558],
+            [-76.5318907, 3.3711558],
+            [-76.5318907, 3.3705167],
+            [-76.5322727, 3.3705167],
+            [-76.5322727, 3.3711558]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "c17",
+        "nombre": "Cancha de fútbol C17",
+        "tipo": "cancha",
+        "edificio": null,
+        "notas": null,
+        "etiqueta": "C17",
+        "centro": [-76.530282, 3.3692258]
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-76.5305324, 3.3696831],
+            [-76.5305397, 3.3687727],
+            [-76.5300362, 3.3687686],
+            [-76.5300288, 3.369679],
+            [-76.5305324, 3.3696831]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "c18",
+        "nombre": "Cancha de fútbol C18",
+        "tipo": "cancha",
+        "edificio": null,
+        "notas": null,
+        "etiqueta": "C18",
+        "centro": [-76.5308723, 3.3691743]
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-76.5311208, 3.3696315],
+            [-76.5311282, 3.3687212],
+            [-76.5306246, 3.3687171],
+            [-76.5306173, 3.3696275],
+            [-76.5311208, 3.3696315]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "c19",
+        "nombre": "Cancha de fútbol C19",
+        "tipo": "cancha",
+        "edificio": null,
+        "notas": null,
+        "etiqueta": "C19",
+        "centro": [-76.5315181, 3.3695814]
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-76.5318379, 3.3700493],
+            [-76.531207, 3.3700533],
+            [-76.5312011, 3.3691136],
+            [-76.531832, 3.3691097],
+            [-76.5318379, 3.3700493]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "c20",
+        "nombre": "Cancha de fútbol C20",
+        "tipo": "cancha",
+        "edificio": null,
+        "notas": null,
+        "etiqueta": "C20",
+        "centro": [-76.5321926, 3.3699037]
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-76.5323822, 3.3704069],
+            [-76.5318621, 3.3703302],
+            [-76.5319959, 3.3694034],
+            [-76.532523, 3.3694777],
+            [-76.5323822, 3.3704069]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "c21",
+        "nombre": "Canchas de tenis C21",
+        "tipo": "cancha",
+        "edificio": null,
+        "notas": null,
+        "etiqueta": "C21",
+        "centro": [-76.5333865, 3.3698734]
+      },
+      "geometry": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [-76.5330857, 3.3699651],
+              [-76.5329254, 3.3699637],
+              [-76.5329279, 3.3696554],
+              [-76.5330883, 3.3696568],
+              [-76.5330857, 3.3699651]
+            ]
+          ],
+          [
+            [
+              [-76.5338487, 3.370129],
+              [-76.5336884, 3.3701277],
+              [-76.5336909, 3.3698194],
+              [-76.5338513, 3.3698207],
+              [-76.5338487, 3.370129]
+            ]
+          ],
+          [
+            [
+              [-76.5336811, 3.3700527],
+              [-76.5335207, 3.3700514],
+              [-76.5335233, 3.3697431],
+              [-76.5336836, 3.3697444],
+              [-76.5336811, 3.3700527]
+            ]
+          ],
+          [
+            [
+              [-76.5332519, 3.3699664],
+              [-76.5330916, 3.369965],
+              [-76.5330941, 3.3696567],
+              [-76.5332545, 3.3696581],
+              [-76.5332519, 3.3699664]
+            ]
+          ]
+        ]
+      }
     }
   ]
 }

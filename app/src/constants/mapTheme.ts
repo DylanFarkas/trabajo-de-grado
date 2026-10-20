@@ -48,10 +48,12 @@ export type MapPalette = {
   steps: string;
   footprint: string;
   footprintOpacity: number;
-  /** Relleno de un espacio en el suelo (parqueadero, cancha). No es un edificio. */
+  /** Relleno de un espacio en el suelo (parqueadero). No es un edificio. */
   spaceFill: string;
   spaceFillOpacity: number;
   spaceLine: string;
+  /** Relleno de una cancha: verde claro, sin borde y no el azul de los parqueaderos. */
+  canchaFill: string;
   buildings: BuildingTones;
   buildingOpacity: number;
   buildingGradient: boolean;
@@ -103,6 +105,7 @@ const DAY: MapPalette = {
   spaceFill: "#b7cbe4",
   spaceFillOpacity: 0.92,
   spaceLine: "#4f74a3",
+  canchaFill: "#DEE3CD",
   buildings: {
     library: "#e8eef1",
     food: "#efe8de",
@@ -150,6 +153,7 @@ const NIGHT: MapPalette = {
   spaceFill: "#24344c",
   spaceFillOpacity: 0.94,
   spaceLine: "#8eb0d6",
+  canchaFill: "#C8FACC",
   buildings: {
     library: "#7d8798",
     food: "#8a8074",

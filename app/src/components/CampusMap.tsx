@@ -945,7 +945,7 @@ function buildMapHtml(initialTheme: MapTheme): string {
     }
 
     var CAMPUS_LAYERS = [
-      'motos-icon', 'bicis-icon', 'banos-icon', 'buildings-labels', 'espacios-label', 'lamp-bulb', 'lamp-3d', 'buildings-selected', 'buildings-3d',
+      'tenis-icon', 'canchas-icon', 'motos-icon', 'bicis-icon', 'banos-icon', 'buildings-labels', 'espacios-label', 'lamp-bulb', 'lamp-3d', 'buildings-selected', 'buildings-3d',
       'buildings-footprint', 'buildings-hit', 'campus-building-3d',
       'lamp-core', 'lamp-glow', 'lamp-pool',
       'steps-line', 'foot-line', 'foot-casing', 'service-line', 'service-casing',
@@ -967,22 +967,23 @@ function buildMapHtml(initialTheme: MapTheme): string {
         });
       });
       map.setLight(colors.light);
-      hideBasemapToilets();
+      hideBasemapIcons();
     }
 
-    /** Los íconos de baño del mapa base no coinciden con los nuestros. El estilo se recarga entero, así que el filtro no se acumula. */
-    function hideBasemapToilets() {
-      if (window.__hidBasemapToilets) return;
+    /** Los íconos de baño y de cancha (POI pitch) del mapa base no coinciden con los nuestros. El estilo se recarga entero, así que el filtro no se acumula. */
+    function hideBasemapIcons() {
+      if (window.__hidBasemapIcons) return;
       var style = map.getStyle();
       if (!style || !style.layers) return;
-      window.__hidBasemapToilets = true;
+      window.__hidBasemapIcons = true;
       var dropToilet = ['!=', ['coalesce', ['get', 'class'], ''], 'toilet'];
+      var dropPitch = ['!=', ['coalesce', ['get', 'class'], ''], 'pitch'];
       style.layers.forEach(function (layer) {
         if (layer['source-layer'] !== 'poi') return;
         var current = null;
         try { current = map.getFilter(layer.id); } catch (e) { return; }
         try {
-          map.setFilter(layer.id, current ? ['all', current, dropToilet] : dropToilet);
+          map.setFilter(layer.id, current ? ['all', current, dropToilet, dropPitch] : ['all', dropToilet, dropPitch]);
         } catch (e) {}
       });
     }
@@ -991,6 +992,8 @@ function buildMapHtml(initialTheme: MapTheme): string {
     var WC_GLYPH = 'M5.5 21v-6.5H5c-.55 0-1-.45-1-1V9c0-1.1.9-2 2-2h3c1.1 0 2 .9 2 2v4.5c0 .55-.45 1-1 1h-.5V21c0 .55-.45 1-1 1h-2c-.55 0-1-.45-1-1zM18 21v-5h1.61c.68 0 1.16-.67.95-1.32l-2.1-6.31C18.18 7.55 17.42 7 16.56 7h-.12c-.86 0-1.63.55-1.9 1.37l-2.1 6.31c-.22.65.26 1.32.95 1.32H15v5c0 .55.45 1 1 1h1c.55 0 1-.45 1-1zM7.5 6c1.11 0 2-.89 2-2s-.89-2-2-2-2 .89-2 2 .89 2 2 2zm9 0c1.11 0 2-.89 2-2s-.89-2-2-2-2 .89-2 2 .89 2 2 2z';
     var BIKE_GLYPH = 'M15.5 5.5c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zM5 12c-2.8 0-5 2.2-5 5s2.2 5 5 5 5-2.2 5-5-2.2-5-5-5zm0 8.5c-1.9 0-3.5-1.6-3.5-3.5s1.6-3.5 3.5-3.5 3.5 1.6 3.5 3.5-1.6 3.5-3.5 3.5zm5.8-10l2.4-2.4.8.8c1.06 1.06 2.38 1.78 3.96 2.02.6.09 1.14-.39 1.14-1 0-.49-.37-.91-.85-.99-1.11-.18-2.02-.71-2.75-1.43l-1.9-1.9c-.5-.4-1-.6-1.6-.6s-1.1.2-1.4.6L7.8 8.4c-.4.4-.6.9-.6 1.4 0 .6.2 1.1.6 1.4L11 14v4c0 .55.45 1 1 1s1-.45 1-1v-4.4c0-.52-.2-1.01-.55-1.38L10.8 10.5zM19 12c-2.8 0-5 2.2-5 5s2.2 5 5 5 5-2.2 5-5-2.2-5-5-5zm0 8.5c-1.9 0-3.5-1.6-3.5-3.5s1.6-3.5 3.5-3.5 3.5 1.6 3.5 3.5-1.6 3.5-3.5 3.5z';
     var MOTO_GLYPH = 'M20 11c-.18 0-.36.03-.53.05L17.41 9H20V6l-3.72 1.86L13.41 5H9v2h3.59l2 2H11l-4 2-2-2H0v2h4c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4l2 2h3l3.49-6.1 1.01 1.01c-.91.73-1.5 1.84-1.5 3.09 0 2.21 1.79 4 4 4s4-1.79 4-4-1.79-4-4-4zM4 17c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm16 0c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z';
+    var SOCCER_GLYPH = 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 3.3 1.35-.95a8.01 8.01 0 0 1 4.38 3.34l-.39 1.34-1.35.46L13 6.7V5.3zm-3.35-.95L11 5.3v1.4L7.01 9.49l-1.35-.46-.39-1.34a8.103 8.103 0 0 1 4.38-3.34zM7.08 17.11l-1.14.1A7.938 7.938 0 0 1 4 12c0-.12.01-.23.02-.35l1-.73 1.38.48 1.46 4.34-.78 1.37zm7.42 2.48c-.79.26-1.63.41-2.5.41s-1.71-.15-2.5-.41l-.69-1.49.64-1.1h5.11l.64 1.11-.7 1.48zM14.27 15H9.73l-1.35-4.02L12 8.44l3.63 2.54L14.27 15zm3.79 2.21-1.14-.1-.79-1.37 1.46-4.34 1.39-.47 1 .73c.01.11.02.22.02.34 0 1.99-.73 3.81-1.94 5.21z';
+    var TENNIS_GLYPH = 'M19.52 2.49C17.18.15 12.9.62 9.97 3.55c-1.6 1.6-2.52 3.87-2.54 5.46-.02 1.58.26 3.89-1.35 5.5l-4.24 4.24 1.42 1.42 4.24-4.24c1.61-1.61 3.92-1.33 5.5-1.35s3.86-.94 5.46-2.54c2.92-2.93 3.4-7.21 1.06-9.55zm-9.2 9.19c-1.53-1.53-1.05-4.61 1.06-6.72s5.18-2.59 6.72-1.06c1.53 1.53 1.05 4.61-1.06 6.72s-5.18 2.59-6.72 1.06zM18 17c.53 0 1.04.21 1.41.59.78.78.78 2.05 0 2.83-.37.37-.88.58-1.41.58s-1.04-.21-1.41-.59c-.78-.78-.78-2.05 0-2.83.37-.37.88-.58 1.41-.58m0-2a3.998 3.998 0 0 0-2.83 6.83c.78.78 1.81 1.17 2.83 1.17a3.998 3.998 0 0 0 2.83-6.83A3.998 3.998 0 0 0 18 15z';
 
     /** Circulo con el glifo en blanco. El mapa es un canvas y no puede montar el componente Icon. */
     function drawMarkBadge(imageId, topColor, bottomColor, drawGlyph) {
@@ -1074,12 +1077,14 @@ function buildMapHtml(initialTheme: MapTheme): string {
         map.addSource('espacios', { type: 'geojson', data: spaces, promoteId: 'id' });
         map.addLayer({
           id: 'espacios-fill', type: 'fill', source: 'espacios',
-          filter: ['==', ['geometry-type'], 'Polygon'],
+          filter: ['match', ['geometry-type'], ['Polygon', 'MultiPolygon'], true, false],
           paint: {
             'fill-color': [
               'case',
               ['boolean', ['feature-state', 'selected'], false],
               colors.selected,
+              ['==', ['get', 'tipo'], 'cancha'],
+              colors.canchaFill,
               colors.spaceFill
             ],
             'fill-opacity': colors.spaceFillOpacity
@@ -1087,7 +1092,7 @@ function buildMapHtml(initialTheme: MapTheme): string {
         }, beforeId);
         map.addLayer({
           id: 'espacios-line', type: 'line', source: 'espacios',
-          filter: ['==', ['geometry-type'], 'Polygon'],
+          filter: ['match', ['geometry-type'], ['Polygon', 'MultiPolygon'], true, false],
           layout: { 'line-join': 'round' },
           paint: {
             'line-color': [
@@ -1096,6 +1101,8 @@ function buildMapHtml(initialTheme: MapTheme): string {
               colors.selected,
               colors.spaceLine
             ],
+            // Las canchas van sin borde: solo relleno verde e icono.
+            'line-opacity': ['case', ['==', ['get', 'tipo'], 'cancha'], 0, 1],
             'line-width': [
               'interpolate', ['linear'], ['zoom'],
               15, ['case', ['boolean', ['feature-state', 'selected'], false], 2.4, 1.2],
@@ -1106,7 +1113,7 @@ function buildMapHtml(initialTheme: MapTheme): string {
         }, beforeId);
         map.addLayer({
           id: 'espacios-label', type: 'symbol', source: 'espacios',
-          filter: ['match', ['get', 'tipo'], ['bano', 'parqueadero_bici', 'parqueadero_moto'], false, true],
+          filter: ['match', ['get', 'tipo'], ['bano', 'parqueadero_bici', 'parqueadero_moto', 'cancha'], false, true],
           minzoom: 16,
           layout: {
             'text-field': ['coalesce', ['get', 'etiqueta'], ['get', 'nombre'], ''],
@@ -1395,6 +1402,8 @@ function buildMapHtml(initialTheme: MapTheme): string {
         ensureMarkIcon('bano-mark', WC_GLYPH, 3);
         ensureMarkIcon('bici-mark', BIKE_GLYPH, 2.6);
         ensureMarkIcon('moto-mark', MOTO_GLYPH, 2.6);
+        ensureMarkIcon('cancha-mark', SOCCER_GLYPH, 2.7, ['#8fa16b', '#66784a']);
+        ensureMarkIcon('tenis-mark', TENNIS_GLYPH, 2.7, ['#8fa16b', '#66784a']);
         var spaceIconLayout = {
           'icon-size': ['interpolate', ['linear'], ['zoom'], 15.6, 0.8, 17, 0.95, 19, 1.1],
           'icon-allow-overlap': true,
@@ -1419,6 +1428,35 @@ function buildMapHtml(initialTheme: MapTheme): string {
           filter: ['==', ['get', 'tipo'], 'parqueadero_moto'],
           minzoom: 15.6,
           layout: Object.assign({ 'icon-image': 'moto-mark' }, spaceIconLayout)
+        });
+        /** Distintivo propio de cancha (verde, como su relleno) con el código debajo. Sin esto el mapa base pintaba su POI pitch genérico. */
+        var canchaIconLayout = Object.assign({}, spaceIconLayout, {
+          'text-field': ['coalesce', ['get', 'etiqueta'], ['get', 'nombre'], ''],
+          'text-font': ['Noto Sans Bold'],
+          'text-size': ['interpolate', ['linear'], ['zoom'], 16, 11, 18, 14],
+          'text-anchor': 'top',
+          'text-offset': [0, 1.7],
+          'text-allow-overlap': true,
+          'text-ignore-placement': true
+        });
+        var canchaIconPaint = {
+          'text-color': colors.label,
+          'text-halo-color': colors.labelHalo,
+          'text-halo-width': 1.5
+        };
+        map.addLayer({
+          id: 'canchas-icon', type: 'symbol', source: 'espacios',
+          filter: ['all', ['==', ['get', 'tipo'], 'cancha'], ['!=', ['get', 'id'], 'c21']],
+          minzoom: 15.6,
+          layout: Object.assign({ 'icon-image': 'cancha-mark' }, canchaIconLayout),
+          paint: canchaIconPaint
+        });
+        map.addLayer({
+          id: 'tenis-icon', type: 'symbol', source: 'espacios',
+          filter: ['all', ['==', ['get', 'tipo'], 'cancha'], ['==', ['get', 'id'], 'c21']],
+          minzoom: 15.6,
+          layout: Object.assign({ 'icon-image': 'tenis-mark' }, canchaIconLayout),
+          paint: canchaIconPaint
         });
       }
 
@@ -1585,7 +1623,7 @@ function buildMapHtml(initialTheme: MapTheme): string {
     };
 
     map.on('style.load', function () {
-      window.__hidBasemapToilets = false;
+      window.__hidBasemapIcons = false;
       applyBaseTheme();
       addCampusLayers();
       finishThemeChange();
