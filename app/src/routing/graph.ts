@@ -22,12 +22,53 @@ export type WalkCost = "short" | "lit";
  */
 const DARK_FIRST_M = 1_000_000;
 
+/**
+ * Tramo del GeoJSON que se puede cerrar: `osm:<id_segmento>` o `pasillo:<id_pasillo>`.
+ * Las aristas que el grafo parte al enganchar puertas y espacios conservan la clave.
+ */
+export type SegmentKey = string;
+
+/** `blocked`: no se cruza. `penalized`: se cruza solo si no hay otra opción razonable. */
+export type ClosureImpact = {
+  blocked: ReadonlySet<SegmentKey>;
+  penalized: ReadonlySet<SegmentKey>;
+};
+
+export const NO_CLOSURES: ClosureImpact = { blocked: new Set(), penalized: new Set() };
+
+/** Costo extra de un tramo con reporte sin confirmar, aparte de luz y metros. */
+const CLOSURE_PENALTY_M = 1000;
+
+let IMPACT: ClosureImpact = NO_CLOSURES;
+
+/** Cierres que respetan todas las rutas a partir de ahora. */
+export function setClosureImpact(impact: ClosureImpact | null) {
+  IMPACT = impact ?? NO_CLOSURES;
+}
+
+export function currentClosureImpact(): ClosureImpact {
+  return IMPACT;
+}
+
+/** Corre `fn` con otros cierres y deja los de antes. Solo para cálculos síncronos. */
+export function withClosureImpact<T>(impact: ClosureImpact | null, fn: () => T): T {
+  const previous = IMPACT;
+  IMPACT = impact ?? NO_CLOSURES;
+  try {
+    return fn();
+  } finally {
+    IMPACT = previous;
+  }
+}
+
 export type RouteResult = {
   nodeIds: number[];
   coordinates: [number, number][]; // [lon, lat]
   distanceM: number;
   /** Metros del camino que no caen bajo un poste. Solo lo trae el grafo del campus. */
   darkM?: number;
+  /** Metros más el castigo de los tramos reportados. Sirve para comparar rutas, no para mostrar. */
+  costM?: number;
   origin: LatLng;
   destination: LatLng;
 };
@@ -41,6 +82,8 @@ type GraphEdge = {
   coords: [number, number][];
   /** Calle o vía interna. Los senderos y pasillos quedan en false. */
   vehicle: boolean;
+  /** Ausente en los conectores a puertas y espacios. */
+  segment?: SegmentKey;
 };
 
 type GraphNode = {
@@ -56,6 +99,17 @@ type RawEdge = {
   coords: [number, number][];
   oneway: boolean;
   vehicle: boolean;
+  segment?: SegmentKey;
+};
+
+export type CampusSegment = {
+  key: SegmentKey;
+  kind: "osm" | "pasillo";
+  /** Nombre de la vía o del pasillo, si lo tiene. */
+  name: string | null;
+  vehicle: boolean;
+  lengthM: number;
+  coordinates: [number, number][];
 };
 
 export type RouteMode = "walk" | "drive";
@@ -194,6 +248,7 @@ function splitRawEdge(
       coords: leftCoords,
       oneway: edge.oneway,
       vehicle: edge.vehicle,
+      segment: edge.segment,
     },
     {
       from: id,
@@ -202,6 +257,7 @@ function splitRawEdge(
       coords: rightCoords,
       oneway: edge.oneway,
       vehicle: edge.vehicle,
+      segment: edge.segment,
     },
   );
   return id;
@@ -337,16 +393,33 @@ function splicePassages(nodes: Map<number, GraphNode>, raw: RawEdge[]) {
     if (line.length < 2) continue;
 
     const stated = Number(feature.properties?.longitud_m);
+    const weight = stated > 0 ? stated : chainLengthM(line);
+    const passageId = Number(feature.properties?.id_pasillo);
+    const segment = Number.isInteger(passageId) ? `pasillo:${passageId}` : undefined;
     raw.push({
       from: startId,
       to: endId,
-      weight: stated > 0 ? stated : chainLengthM(line),
+      weight,
       coords: line,
       oneway: isOneway(feature.properties?.oneway),
       vehicle: false,
+      segment,
     });
+    if (segment) {
+      SEGMENTS.set(segment, {
+        key: segment,
+        kind: "pasillo",
+        name: textOrNull(feature.properties?.name),
+        vehicle: false,
+        lengthM: weight,
+        coordinates: line,
+      });
+    }
   }
 }
+
+/** Tramos cerrables tal como vienen del GeoJSON, antes de partirlos. */
+const SEGMENTS = new Map<SegmentKey, CampusSegment>();
 
 const SPACE_KINDS = new Set<SpaceKind>([
   "bano",
@@ -542,6 +615,7 @@ function toCampusSpace(space: SpaceNode): CampusSpace {
 }
 
 function buildCampusGraph() {
+  SEGMENTS.clear();
   const nodesFc = nodosJson as unknown as GeoJsonFeatureCollection;
   const edgesFc = aristasJson as unknown as GeoJsonFeatureCollection;
 
@@ -567,14 +641,28 @@ function buildCampusGraph() {
     if (!nodes.has(from) || !nodes.has(to)) continue;
     const coords = lineCoords(feature.geometry);
     if (coords.length < 2) continue;
+    const segmentId = Number(props.id_segmento);
+    const segment = Number.isInteger(segmentId) ? `osm:${segmentId}` : undefined;
+    const vehicle = isVehicleHighway(props);
     raw.push({
       from,
       to,
       weight,
       coords,
       oneway: isOneway(props.oneway),
-      vehicle: isVehicleHighway(props),
+      vehicle,
+      segment,
     });
+    if (segment) {
+      SEGMENTS.set(segment, {
+        key: segment,
+        kind: "osm",
+        name: textOrNull(props.name) ?? textOrNull(props.alt_name),
+        vehicle,
+        lengthM: weight,
+        coordinates: coords,
+      });
+    }
   }
 
   splicePassages(nodes, raw);
@@ -597,6 +685,7 @@ function buildCampusGraph() {
       darkM,
       coords: edge.coords,
       vehicle: edge.vehicle,
+      segment: edge.segment,
     });
     if (!edge.oneway) {
       adj.get(edge.to)!.push({
@@ -605,6 +694,7 @@ function buildCampusGraph() {
         darkM,
         coords: [...edge.coords].reverse(),
         vehicle: edge.vehicle,
+        segment: edge.segment,
       });
     }
   }
@@ -659,9 +749,18 @@ export function nodeLatLng(id: number): LatLng | null {
   return { latitude: node.latitude, longitude: node.longitude };
 }
 
+function edgeBlocked(edge: GraphEdge): boolean {
+  return edge.segment != null && IMPACT.blocked.has(edge.segment);
+}
+
+function closurePenalty(edge: GraphEdge): number {
+  return edge.segment != null && IMPACT.penalized.has(edge.segment) ? CLOSURE_PENALTY_M : 0;
+}
+
 function edgeCost(edge: GraphEdge, mode: RouteMode, cost: WalkCost): number {
-  if (mode === "drive" || cost === "short") return edge.weight;
-  return edge.darkM * DARK_FIRST_M + edge.weight;
+  const penalty = closurePenalty(edge);
+  if (mode === "drive" || cost === "short") return edge.weight + penalty;
+  return edge.darkM * DARK_FIRST_M + edge.weight + penalty;
 }
 
 /** Dijkstra. A pie puede preferir luz; en carro solo recorre vías, por metros. */
@@ -679,6 +778,7 @@ export function shortestPath(
       coordinates: [[p.longitude, p.latitude]],
       distanceM: 0,
       darkM: 0,
+      costM: 0,
       origin: p,
       destination: p,
     };
@@ -707,7 +807,7 @@ export function shortestPath(
     const edges = GRAPH.adj.get(u) ?? [];
     for (const edge of edges) {
       if (mode === "drive" && !edge.vehicle) continue;
-      if (visited.has(edge.to)) continue;
+      if (visited.has(edge.to) || edgeBlocked(edge)) continue;
       const nd = best + edgeCost(edge, mode, cost);
       if (nd < (dist.get(edge.to) ?? Infinity)) {
         dist.set(edge.to, nd);
@@ -746,9 +846,11 @@ export function shortestPath(
 
   let distanceM = 0;
   let darkM = 0;
+  let costM = 0;
   for (const edge of edgeChain) {
     distanceM += edge.weight;
     darkM += edge.darkM;
+    costM += edge.weight + closurePenalty(edge);
   }
 
   return {
@@ -756,6 +858,7 @@ export function shortestPath(
     coordinates,
     distanceM,
     darkM,
+    costM,
     origin,
     destination,
   };
@@ -783,7 +886,7 @@ export function entrancePoint(
   for (const id of ids) {
     if (id === fromId) return nodeLatLng(id);
     const path = shortestPath(fromId, id);
-    const distance = path?.distanceM ?? Infinity;
+    const distance = path?.costM ?? Infinity;
     if (distance < best) {
       best = distance;
       bestId = id;
@@ -833,27 +936,30 @@ export function spacePoint(id: string): LatLng | null {
   return nodeLatLng(space.nodeId);
 }
 
-function walkDistances(originId: number): Map<number, number> {
-  const dist = new Map<number, number>();
+/** Costo (con castigo) y metros reales de la mejor caminata a cada nodo. */
+function walkDistances(originId: number): Map<number, { costM: number; distanceM: number }> {
+  const dist = new Map<number, { costM: number; distanceM: number }>();
   const visited = new Set<number>();
-  for (const id of GRAPH.nodes.keys()) dist.set(id, Infinity);
-  dist.set(originId, 0);
+  for (const id of GRAPH.nodes.keys()) dist.set(id, { costM: Infinity, distanceM: Infinity });
+  dist.set(originId, { costM: 0, distanceM: 0 });
 
   while (visited.size < GRAPH.nodes.size) {
     let current: number | null = null;
-    let best = Infinity;
-    for (const [id, distance] of dist) {
-      if (!visited.has(id) && distance < best) {
-        best = distance;
+    let best = { costM: Infinity, distanceM: Infinity };
+    for (const [id, entry] of dist) {
+      if (!visited.has(id) && entry.costM < best.costM) {
+        best = entry;
         current = id;
       }
     }
-    if (current == null || best === Infinity) break;
+    if (current == null || best.costM === Infinity) break;
     visited.add(current);
     for (const edge of GRAPH.adj.get(current) ?? []) {
-      if (visited.has(edge.to)) continue;
-      const next = best + edge.weight;
-      if (next < (dist.get(edge.to) ?? Infinity)) dist.set(edge.to, next);
+      if (visited.has(edge.to) || edgeBlocked(edge)) continue;
+      const next = best.costM + edge.weight + closurePenalty(edge);
+      if (next < (dist.get(edge.to)?.costM ?? Infinity)) {
+        dist.set(edge.to, { costM: next, distanceM: best.distanceM + edge.weight });
+      }
     }
   }
   return dist;
@@ -868,16 +974,18 @@ export function nearestSpace(
   if (originId == null) return null;
   const distances = walkDistances(originId);
   let best: SpaceNode | null = null;
+  let bestCost = Infinity;
   let bestDistance = Infinity;
   for (const space of SPACE_LIST) {
     if (space.tipo !== tipo || space.nodeId == null) continue;
-    const distance = distances.get(space.nodeId) ?? Infinity;
-    if (distance < bestDistance) {
+    const entry = distances.get(space.nodeId);
+    if (entry && entry.costM < bestCost) {
       best = space;
-      bestDistance = distance;
+      bestCost = entry.costM;
+      bestDistance = entry.distanceM;
     }
   }
-  if (!best || bestDistance === Infinity) return null;
+  if (!best || bestCost === Infinity) return null;
   return { ...toCampusSpace(best), distanceM: bestDistance };
 }
 
@@ -910,20 +1018,21 @@ export function nearestDriveParking(
   const destinationId = nearestNodeId(destination);
   if (destinationId == null) return null;
   let best: SpaceNode | null = null;
+  let bestCost = Infinity;
   let bestDistance = Infinity;
   for (const space of SPACE_LIST) {
     if (space.tipo !== "parqueadero" || space.nodeId == null) continue;
     if (!GRAPH.driveNodes.has(space.nodeId)) continue;
-    const distance =
-      space.nodeId === destinationId
-        ? 0
-        : (shortestPath(space.nodeId, destinationId, "walk")?.distanceM ?? Infinity);
-    if (distance < bestDistance) {
+    const path =
+      space.nodeId === destinationId ? null : shortestPath(space.nodeId, destinationId, "walk");
+    const cost = space.nodeId === destinationId ? 0 : (path?.costM ?? Infinity);
+    if (cost < bestCost) {
       best = space;
-      bestDistance = distance;
+      bestCost = cost;
+      bestDistance = path?.distanceM ?? 0;
     }
   }
-  if (!best || bestDistance === Infinity) return null;
+  if (!best || bestCost === Infinity) return null;
   return { ...toCampusSpace(best), distanceM: bestDistance };
 }
 
@@ -932,4 +1041,83 @@ export function nearestBikeParking(
   destination: LatLng,
 ): (CampusSpace & { distanceM: number }) | null {
   return nearestSpace(destination, "parqueadero_bici");
+}
+
+export function isSegmentKey(value: unknown): value is SegmentKey {
+  return typeof value === "string" && SEGMENTS.has(value);
+}
+
+export function listSegments(): CampusSegment[] {
+  return [...SEGMENTS.values()];
+}
+
+export function campusSegment(key: SegmentKey): CampusSegment | null {
+  return SEGMENTS.get(key) ?? null;
+}
+
+function distanceToLineM(point: LatLng, coords: [number, number][]): number {
+  const p: [number, number] = [point.longitude, point.latitude];
+  let best = Infinity;
+  for (let i = 0; i < coords.length - 1; i++) {
+    best = Math.min(best, closestOnSegment(p, coords[i], coords[i + 1]).distanceM);
+  }
+  return best;
+}
+
+/** Metros entre el punto y el tramo. `Infinity` si la clave no existe. */
+export function distanceToSegmentM(point: LatLng, key: SegmentKey): number {
+  const segment = SEGMENTS.get(key);
+  return segment ? distanceToLineM(point, segment.coordinates) : Infinity;
+}
+
+/** Tramo cerrable más cercano al punto, si queda a `maxM` o menos. */
+export function segmentAtPoint(point: LatLng, maxM = 25): CampusSegment | null {
+  let best: CampusSegment | null = null;
+  let bestD = Infinity;
+  for (const segment of SEGMENTS.values()) {
+    const d = distanceToLineM(point, segment.coordinates);
+    if (d < bestD) {
+      best = segment;
+      bestD = d;
+    }
+  }
+  return best && bestD <= maxM ? best : null;
+}
+
+/** Punto a mitad del tramo, para centrar el mapa o medir cercanía. */
+export function segmentMidpoint(key: SegmentKey): LatLng | null {
+  const segment = SEGMENTS.get(key);
+  if (!segment) return null;
+  const half = chainLengthM(segment.coordinates) / 2;
+  let walked = 0;
+  for (let i = 1; i < segment.coordinates.length; i++) {
+    const a = segment.coordinates[i - 1];
+    const b = segment.coordinates[i];
+    const step = chainLengthM([a, b]);
+    if (walked + step >= half && step > 0) {
+      const t = (half - walked) / step;
+      return { longitude: a[0] + (b[0] - a[0]) * t, latitude: a[1] + (b[1] - a[1]) * t };
+    }
+    walked += step;
+  }
+  const [lon, lat] = segment.coordinates[0];
+  return { longitude: lon, latitude: lat };
+}
+
+/**
+ * Tramos de `keys` que la línea recorre. Mira la geometría y no las aristas,
+ * así sirve para rutas armadas con varios tramos o con calle.
+ */
+export function segmentsOnRoute(
+  coordinates: [number, number][],
+  keys: Iterable<SegmentKey>,
+  toleranceM = 3,
+): SegmentKey[] {
+  if (coordinates.length < 2) return [];
+  const hits: SegmentKey[] = [];
+  for (const key of keys) {
+    const mid = segmentMidpoint(key);
+    if (mid && distanceToLineM(mid, coordinates) <= toleranceM) hits.push(key);
+  }
+  return hits;
 }

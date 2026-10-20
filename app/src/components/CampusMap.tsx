@@ -37,15 +37,22 @@ import {
   RouteIntentError,
 } from "@/routing/deepseekIntent";
 import {
+  campusSegment,
   entrancePoint,
   formatDistance,
   nearestNodeId,
   nodeLatLng,
+  segmentAtPoint,
+  segmentsOnRoute,
+  setClosureImpact,
   spacePoint,
+  type ClosureImpact,
   type LatLng,
+  type SegmentKey,
   type WalkCost,
 } from "@/routing/graph";
 import {
+  ClosureIsolationError,
   formatDuration,
   pointInCampus,
   routeHybrid,
@@ -62,12 +69,83 @@ import { AssistantSheet } from "@/components/AssistantSheet";
 import { ExploreSheet } from "@/components/ExploreSheet";
 import { homeTabBarHeight } from "@/components/HomeTabs";
 import { MapControls } from "@/components/MapControls";
-import { RouteSheet, type RouteSlot } from "@/components/RouteSheet";
+import { RouteSheet, type RouteClosureNotice, type RouteSlot } from "@/components/RouteSheet";
 import { useSheetPresence } from "@/components/SnapSheet";
 import { ToursSheet } from "@/components/ToursSheet";
+import { ClosureComposer } from "@/components/ClosureComposer";
+import { ClosureDetail } from "@/components/ClosureDetail";
+import { ClosurePromptCard, ClosureReportBar } from "@/components/ClosureOverlays";
 import { useMapPanel, type MapPanel } from "@/map-panel";
+import { useAuth } from "@/auth";
+import {
+  CLOSURE_MAX_SEGMENTS,
+  avoidSegments,
+  closureImpact,
+  markClosurePrompted,
+  recentlyPromptedClosures,
+  relaxImpact,
+  type ActiveClosure,
+} from "@/closures";
+import {
+  ON_SITE_RADIUS_M,
+  POSITION_MODE,
+  distanceToSegmentsM,
+  isOnSite,
+  positionIsTrusted,
+  serverPositionSource,
+  useEffectivePosition,
+} from "@/location/position";
+import { useCampusClosures } from "@/useClosures";
 
 const UniWebView = withUniwind(WebView);
+
+/** Tramos cerca de la ruta que cuentan como "evitados" en el aviso. */
+const AVOIDED_NEAR_M = 80;
+
+type ClosureOverride = { kind: "avoid"; keys: SegmentKey[] } | { kind: "relaxed" } | null;
+
+function impactSignature(impact: ClosureImpact): string {
+  return `${[...impact.blocked].sort().join(",")}|${[...impact.penalized].sort().join(",")}`;
+}
+
+function closuresGeoJson(closures: readonly ActiveClosure[]) {
+  const features = [];
+  for (const closure of closures) {
+    for (const key of closure.segmentKeys) {
+      const segment = campusSegment(key);
+      if (!segment) continue;
+      features.push({
+        type: "Feature" as const,
+        properties: { closureId: closure.id, status: closure.status },
+        geometry: { type: "LineString" as const, coordinates: segment.coordinates },
+      });
+    }
+  }
+  return { type: "FeatureCollection" as const, features };
+}
+
+function draftGeoJson(keys: readonly SegmentKey[]) {
+  return {
+    type: "FeatureCollection" as const,
+    features: keys.flatMap((key) => {
+      const segment = campusSegment(key);
+      return segment
+        ? [
+            {
+              type: "Feature" as const,
+              properties: { key },
+              geometry: { type: "LineString" as const, coordinates: segment.coordinates },
+            },
+          ]
+        : [];
+    }),
+  };
+}
+
+function samePoint(a: LatLng | null | undefined, b: LatLng | null | undefined): boolean {
+  if (!a || !b) return false;
+  return Math.abs(a.latitude - b.latitude) < 1e-7 && Math.abs(a.longitude - b.longitude) < 1e-7;
+}
 
 type SelectedPlace = {
   snapped: LatLng;
@@ -321,6 +399,48 @@ function buildMapHtml(initialTheme: MapTheme): string {
     });
 
     map.addControl(new maplibregl.NavigationControl({ visualizePitch: false, showCompass: false }), 'bottom-left');
+
+    // Mantener presionado fija la ubicación de prueba sin disparar el clic normal.
+    var suppressMapClickUntil = 0;
+    var longPressTimer = null;
+    var longPressStart = null;
+    function cancelLongPress() {
+      if (longPressTimer) clearTimeout(longPressTimer);
+      longPressTimer = null;
+      longPressStart = null;
+    }
+    function armLongPress(x, y) {
+      cancelLongPress();
+      longPressStart = { x: x, y: y };
+      longPressTimer = setTimeout(function () {
+        var lngLat = map.unproject([x, y]);
+        suppressMapClickUntil = Date.now() + 1200;
+        post({ type: 'map-long-press', longitude: lngLat.lng, latitude: lngLat.lat });
+        cancelLongPress();
+      }, 600);
+    }
+    function movedLongPress(x, y) {
+      if (!longPressStart) return;
+      if (Math.hypot(x - longPressStart.x, y - longPressStart.y) > 10) cancelLongPress();
+    }
+    var mapCanvas = map.getCanvas();
+    mapCanvas.addEventListener('touchstart', function (event) {
+      if (event.touches.length !== 1) { cancelLongPress(); return; }
+      var rect = mapCanvas.getBoundingClientRect();
+      var touch = event.touches[0];
+      armLongPress(touch.clientX - rect.left, touch.clientY - rect.top);
+    }, { passive: true });
+    mapCanvas.addEventListener('touchmove', function (event) {
+      if (event.touches.length !== 1) { cancelLongPress(); return; }
+      var rect = mapCanvas.getBoundingClientRect();
+      var touch = event.touches[0];
+      movedLongPress(touch.clientX - rect.left, touch.clientY - rect.top);
+    }, { passive: true });
+    mapCanvas.addEventListener('touchend', cancelLongPress, { passive: true });
+    mapCanvas.addEventListener('touchcancel', cancelLongPress, { passive: true });
+    mapCanvas.addEventListener('mousedown', function (event) { armLongPress(event.offsetX, event.offsetY); });
+    mapCanvas.addEventListener('mousemove', function (event) { movedLongPress(event.offsetX, event.offsetY); });
+    window.addEventListener('mouseup', cancelLongPress);
 
     var vignette = document.createElement('div');
     vignette.className = 'night-vignette';
@@ -612,7 +732,10 @@ function buildMapHtml(initialTheme: MapTheme): string {
       routeDrive = drive;
       routeWalk = walk;
       routeBike = bike;
-      if (!styleBusy) drawRouteLine();
+      if (!styleBusy) {
+        drawRouteLine();
+        if (campus) drawClosureLayers();
+      }
       clearParkingMarker();
       if (parking && parking.point) {
         var el = document.createElement('div');
@@ -868,8 +991,8 @@ function buildMapHtml(initialTheme: MapTheme): string {
     var BIKE_GLYPH = 'M15.5 5.5c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zM5 12c-2.8 0-5 2.2-5 5s2.2 5 5 5 5-2.2 5-5-2.2-5-5-5zm0 8.5c-1.9 0-3.5-1.6-3.5-3.5s1.6-3.5 3.5-3.5 3.5 1.6 3.5 3.5-1.6 3.5-3.5 3.5zm5.8-10l2.4-2.4.8.8c1.06 1.06 2.38 1.78 3.96 2.02.6.09 1.14-.39 1.14-1 0-.49-.37-.91-.85-.99-1.11-.18-2.02-.71-2.75-1.43l-1.9-1.9c-.5-.4-1-.6-1.6-.6s-1.1.2-1.4.6L7.8 8.4c-.4.4-.6.9-.6 1.4 0 .6.2 1.1.6 1.4L11 14v4c0 .55.45 1 1 1s1-.45 1-1v-4.4c0-.52-.2-1.01-.55-1.38L10.8 10.5zM19 12c-2.8 0-5 2.2-5 5s2.2 5 5 5 5-2.2 5-5-2.2-5-5-5zm0 8.5c-1.9 0-3.5-1.6-3.5-3.5s1.6-3.5 3.5-3.5 3.5 1.6 3.5 3.5-1.6 3.5-3.5 3.5z';
     var MOTO_GLYPH = 'M20 11c-.18 0-.36.03-.53.05L17.41 9H20V6l-3.72 1.86L13.41 5H9v2h3.59l2 2H11l-4 2-2-2H0v2h4c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4l2 2h3l3.49-6.1 1.01 1.01c-.91.73-1.5 1.84-1.5 3.09 0 2.21 1.79 4 4 4s4-1.79 4-4-1.79-4-4-4zM4 17c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm16 0c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z';
 
-    /** Circulo azul con el glifo en blanco. El mapa es un canvas y no puede montar el componente Icon. */
-    function ensureMarkIcon(imageId, glyph, scale) {
+    /** Circulo con el glifo en blanco. El mapa es un canvas y no puede montar el componente Icon. */
+    function drawMarkBadge(imageId, topColor, bottomColor, drawGlyph) {
       if (map.hasImage(imageId)) return;
       var size = 160;
       var cx = 80;
@@ -890,21 +1013,45 @@ function buildMapHtml(initialTheme: MapTheme): string {
       ctx.restore();
 
       var fill = ctx.createLinearGradient(0, cy - 50, 0, cy + 50);
-      fill.addColorStop(0, '#3a9bf4');
-      fill.addColorStop(1, '#1673d6');
+      fill.addColorStop(0, topColor);
+      fill.addColorStop(1, bottomColor);
       ctx.fillStyle = fill;
       ctx.beginPath();
       ctx.arc(cx, cy, 50, 0, Math.PI * 2);
       ctx.fill();
 
-      ctx.save();
-      ctx.translate(cx - 12 * scale, cy - 12 * scale);
-      ctx.scale(scale, scale);
-      ctx.fillStyle = '#ffffff';
-      ctx.fill(new Path2D(glyph));
-      ctx.restore();
+      drawGlyph(ctx, cx, cy);
 
       map.addImage(imageId, ctx.getImageData(0, 0, size, size), { pixelRatio: 4 });
+    }
+
+    function ensureMarkIcon(imageId, glyph, scale, colors) {
+      drawMarkBadge(imageId, colors ? colors[0] : '#3a9bf4', colors ? colors[1] : '#1673d6', function (ctx, cx, cy) {
+        ctx.save();
+        ctx.translate(cx - 12 * scale, cy - 12 * scale);
+        ctx.scale(scale, scale);
+        ctx.fillStyle = '#ffffff';
+        ctx.fill(new Path2D(glyph));
+        ctx.restore();
+      });
+    }
+
+    /** Distintivo de vía cerrada: anillo y diagonal de prohibido, en el color del estado. */
+    function ensureClosureMarkIcon(imageId, topColor, bottomColor) {
+      drawMarkBadge(imageId, topColor, bottomColor, function (ctx, cx, cy) {
+        ctx.save();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 8;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.arc(cx, cy, 21, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(cx - 15, cy - 15);
+        ctx.lineTo(cx + 15, cy + 15);
+        ctx.stroke();
+        ctx.restore();
+      });
     }
 
     function addCampusLayers() {
@@ -1286,6 +1433,7 @@ function buildMapHtml(initialTheme: MapTheme): string {
       }
 
       drawRouteLine();
+      drawClosureLayers();
     }
 
     function revealMap() {
@@ -1306,6 +1454,134 @@ function buildMapHtml(initialTheme: MapTheme): string {
         window.setMapTheme(next);
       }
     }
+
+    var EMPTY_FC = { type: 'FeatureCollection', features: [] };
+    var closureData = EMPTY_FC;
+    var closureDraft = EMPTY_FC;
+    var CLOSURE_LAYERS = [
+      'closures-draft', 'closures-confirmed-icon', 'closures-provisional-icon', 'closures-hit',
+      'closures-confirmed-cut', 'closures-confirmed', 'closures-provisional', 'closures-candidate'
+    ];
+
+    /** Punto medio de un tramo, caminando la mitad de su longitud. Ahí va el icono del cierre. */
+    function segmentMidpoint(coords) {
+      var total = 0;
+      var lengths = [];
+      for (var i = 1; i < coords.length; i++) {
+        var dx = coords[i][0] - coords[i - 1][0];
+        var dy = coords[i][1] - coords[i - 1][1];
+        var length = Math.sqrt(dx * dx + dy * dy);
+        lengths.push(length);
+        total += length;
+      }
+      var half = total / 2;
+      for (var j = 0; j < lengths.length; j++) {
+        if (half <= lengths[j]) {
+          var share = lengths[j] === 0 ? 0 : half / lengths[j];
+          return [
+            coords[j][0] + (coords[j + 1][0] - coords[j][0]) * share,
+            coords[j][1] + (coords[j + 1][1] - coords[j][1]) * share
+          ];
+        }
+        half -= lengths[j];
+      }
+      return coords[coords.length - 1];
+    }
+
+    /** Un punto por tramo en ámbar o rojo. El candidato (gris) no lleva icono. */
+    function closureIconData() {
+      var features = [];
+      (closureData.features || []).forEach(function (feature) {
+        var status = (feature.properties || {}).status;
+        if (status !== 'provisional' && status !== 'confirmed') return;
+        var coords = feature.geometry && feature.geometry.coordinates;
+        if (!coords || coords.length < 2) return;
+        features.push({
+          type: 'Feature',
+          properties: { closureId: (feature.properties || {}).closureId, status: status },
+          geometry: { type: 'Point', coordinates: segmentMidpoint(coords) }
+        });
+      });
+      return { type: 'FeatureCollection', features: features };
+    }
+
+    /** Cierres arriba de la ruta: se tienen que ver aunque la ruta pase al lado. */
+    function drawClosureLayers() {
+      CLOSURE_LAYERS.forEach(function (id) {
+        if (map.getLayer(id)) map.removeLayer(id);
+      });
+      ['closures', 'closures-draft', 'closures-icons'].forEach(function (id) {
+        if (map.getSource(id)) map.removeSource(id);
+      });
+      map.addSource('closures', { type: 'geojson', data: closureData });
+      map.addSource('closures-draft', { type: 'geojson', data: closureDraft });
+      map.addSource('closures-icons', { type: 'geojson', data: closureIconData() });
+      var lineLayout = { 'line-cap': 'round', 'line-join': 'round' };
+      map.addLayer({
+        id: 'closures-candidate', type: 'line', source: 'closures',
+        filter: ['==', ['get', 'status'], 'candidate'],
+        layout: lineLayout,
+        paint: { 'line-color': '#8e8e93', 'line-width': 5, 'line-opacity': 0.85, 'line-dasharray': [1, 1.4] }
+      });
+      map.addLayer({
+        id: 'closures-provisional', type: 'line', source: 'closures',
+        filter: ['==', ['get', 'status'], 'provisional'],
+        layout: lineLayout,
+        paint: { 'line-color': '#f59e0b', 'line-width': 6.5, 'line-opacity': 0.95, 'line-dasharray': [1.2, 1] }
+      });
+      map.addLayer({
+        id: 'closures-confirmed', type: 'line', source: 'closures',
+        filter: ['==', ['get', 'status'], 'confirmed'],
+        layout: lineLayout,
+        paint: { 'line-color': '#dc2626', 'line-width': 7.5, 'line-opacity': 0.95 }
+      });
+      map.addLayer({
+        id: 'closures-confirmed-cut', type: 'line', source: 'closures',
+        filter: ['==', ['get', 'status'], 'confirmed'],
+        layout: { 'line-join': 'round' },
+        paint: { 'line-color': '#ffffff', 'line-width': 7.5, 'line-dasharray': [0.25, 2.2] }
+      });
+      map.addLayer({
+        id: 'closures-hit', type: 'line', source: 'closures',
+        paint: { 'line-color': '#000000', 'line-width': 24, 'line-opacity': 0 }
+      });
+      ensureClosureMarkIcon('closure-provisional-mark', '#fbbf24', '#d97706');
+      ensureClosureMarkIcon('closure-confirmed-mark', '#f87171', '#b91c1c');
+      var closureIconLayout = {
+        'icon-size': ['interpolate', ['linear'], ['zoom'], 15.6, 0.65, 17, 0.82, 19, 1],
+        'icon-allow-overlap': false,
+        'icon-ignore-placement': false,
+        'icon-anchor': 'center',
+        'icon-pitch-alignment': 'viewport'
+      };
+      map.addLayer({
+        id: 'closures-provisional-icon', type: 'symbol', source: 'closures-icons',
+        filter: ['==', ['get', 'status'], 'provisional'],
+        minzoom: 15.6,
+        layout: Object.assign({ 'icon-image': 'closure-provisional-mark' }, closureIconLayout)
+      });
+      map.addLayer({
+        id: 'closures-confirmed-icon', type: 'symbol', source: 'closures-icons',
+        filter: ['==', ['get', 'status'], 'confirmed'],
+        minzoom: 15.6,
+        layout: Object.assign({ 'icon-image': 'closure-confirmed-mark' }, closureIconLayout)
+      });
+      map.addLayer({
+        id: 'closures-draft', type: 'line', source: 'closures-draft',
+        layout: lineLayout,
+        paint: { 'line-color': '#2563eb', 'line-width': 8, 'line-opacity': 0.9 }
+      });
+    }
+
+    window.setClosures = function (fc) {
+      closureData = fc && fc.features ? fc : EMPTY_FC;
+      if (!styleBusy && campus) drawClosureLayers();
+    };
+
+    window.setClosureDraft = function (fc) {
+      closureDraft = fc && fc.features ? fc : EMPTY_FC;
+      if (!styleBusy && campus) drawClosureLayers();
+    };
 
     map.on('style.load', function () {
       window.__hidBasemapToilets = false;
@@ -1360,6 +1636,7 @@ function buildMapHtml(initialTheme: MapTheme): string {
     };
 
     map.on('click', function (e) {
+      if (Date.now() < suppressMapClickUntil) return;
       var pad = 12;
       var bbox = [[e.point.x - pad, e.point.y - pad], [e.point.x + pad, e.point.y + pad]];
       var hitLayers = [];
@@ -1396,10 +1673,18 @@ function buildMapHtml(initialTheme: MapTheme): string {
         space = map.queryRenderedFeatures(bbox, { layers: ['espacios-fill'] })[0] || null;
       }
       var iconSpaceId = bikeSpaceId || motoSpaceId;
+      var closureId = null;
+      var closureHitLayers = ['closures-confirmed-icon', 'closures-provisional-icon', 'closures-hit']
+        .filter(function (id) { return map.getLayer(id); });
+      if (closureHitLayers.length) {
+        var closureHits = map.queryRenderedFeatures(bbox, { layers: closureHitLayers });
+        if (closureHits.length) closureId = (closureHits[0].properties || {}).closureId || null;
+      }
       post({
         type: 'map-click',
         longitude: e.lngLat.lng,
         latitude: e.lngLat.lat,
+        closureId: closureId,
         building: bathroomEdificio || iconSpaceId ? null : (building ? (building.properties || null) : null),
         spaceId: bathroomEdificio
           ? bathroomSpaceId
@@ -1428,7 +1713,26 @@ export function CampusMap() {
   const [route, setRoute] = useState<HybridRouteResult | null>(null);
   const [routeError, setRouteError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  const { panel: tab, setPanel: setTab, registerSelectMapTab, openPlaceDetails } = useMapPanel();
+  const {
+    panel: tab,
+    setPanel: setTab,
+    registerSelectMapTab,
+    openPlaceDetails,
+    setProfileOpen,
+  } = useMapPanel();
+  const { profile } = useAuth();
+  const userId = profile?.id ?? null;
+  const { closures, myVotes, report: reportClosureNow, vote: voteClosureNow } = useCampusClosures(userId);
+  const [reportMode, setReportMode] = useState(false);
+  const [draftKeys, setDraftKeys] = useState<SegmentKey[]>([]);
+  const [reportHint, setReportHint] = useState<string | null>(null);
+  const [composerOpen, setComposerOpen] = useState(false);
+  const [composerKey, setComposerKey] = useState(0);
+  const [detailId, setDetailId] = useState<number | null>(null);
+  const [closureOverride, setClosureOverride] = useState<ClosureOverride>(null);
+  const [routeIsolated, setRouteIsolated] = useState(false);
+  const [promptedIds, setPromptedIds] = useState<Set<number>>(new Set());
+  const reportedRef = useRef(false);
   const [panelHeight, setPanelHeight] = useState(0);
   const [pickingSlot, setPickingSlot] = useState<RouteSlot | null>(null);
   const [pendingPreset, setPendingPreset] = useState<PresetRoute | null>(null);
@@ -1501,6 +1805,52 @@ export function CampusMap() {
   useEffect(() => {
     mockLocationActiveRef.current = mockLocationActive;
   }, [mockLocationActive]);
+
+  const position = useEffectivePosition({
+    manualPoint: origin,
+    mockPoint: mockLocationActive ? userLocation : null,
+  });
+
+  const baseImpact = useMemo(() => closureImpact(closures), [closures]);
+  const baseSignature = impactSignature(baseImpact);
+  const overrideSignature = closureOverride
+    ? closureOverride.kind === "relaxed"
+      ? "relaxed"
+      : `avoid:${closureOverride.keys.join(",")}`
+    : "";
+  const effectiveImpact = useMemo(() => {
+    if (!closureOverride) return baseImpact;
+    if (closureOverride.kind === "relaxed") return relaxImpact(baseImpact);
+    return avoidSegments(baseImpact, closureOverride.keys);
+    // Solo cambia si cambian los tramos, no cada vez que llega la misma lista.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [baseSignature, overrideSignature]);
+  const effectiveImpactRef = useRef(effectiveImpact);
+  const baseImpactRef = useRef(baseImpact);
+  useEffect(() => {
+    effectiveImpactRef.current = effectiveImpact;
+    baseImpactRef.current = baseImpact;
+  }, [effectiveImpact, baseImpact]);
+  const lastRouteRef = useRef<{
+    from: LatLng;
+    to: LatLng;
+    profile: StreetProfile;
+    walkCost?: WalkCost;
+  } | null>(null);
+
+  useEffect(() => {
+    setClosureImpact(effectiveImpact);
+  }, [effectiveImpact]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void recentlyPromptedClosures(userId).then((ids) => {
+      if (!cancelled) setPromptedIds(ids);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
 
   const html = useMemo(() => (initialTheme ? buildMapHtml(initialTheme) : null), [initialTheme]);
   useEffect(() => {
@@ -1678,10 +2028,17 @@ export function CampusMap() {
       }
       setNightChoiceOpen(false);
 
+      const previous = lastRouteRef.current;
+      const sameTrip = previous != null && samePoint(previous.from, from) && samePoint(previous.to, to);
+      lastRouteRef.current = { from, to, profile, walkCost };
+      if (!sameTrip) setClosureOverride(null);
+      setClosureImpact(sameTrip ? effectiveImpactRef.current : baseImpactRef.current);
+
       const requestId = ++routeRequestRef.current;
       setPreset(null);
       setRouting(true);
       setRouteError(null);
+      setRouteIsolated(false);
       setStatus(
         profile === "driving-car"
           ? "Calculando ruta en carro…"
@@ -1723,7 +2080,8 @@ export function CampusMap() {
         const message = /cancel|abort|timed?\s*out|network request failed|fetch failed/i.test(raw)
           ? "El servicio de calles no respondió. Inténtalo de nuevo."
           : raw;
-        setRouteError(message);
+        setRouteIsolated(error instanceof ClosureIsolationError);
+        setRouteError(error instanceof ClosureIsolationError ? null : message);
         setStatus("");
       } finally {
         if (requestId === routeRequestRef.current) setRouting(false);
@@ -1731,6 +2089,15 @@ export function CampusMap() {
     },
     [syncMarkers, paintRoute, clearRouteLine, mapTheme],
   );
+
+  const impactAppliedRef = useRef(effectiveImpact);
+  useEffect(() => {
+    if (impactAppliedRef.current === effectiveImpact) return;
+    impactAppliedRef.current = effectiveImpact;
+    const last = lastRouteRef.current;
+    if (!last || preset || !origin || !destination) return;
+    void runRoute(last.from, last.to, last.profile, last.walkCost);
+  }, [effectiveImpact, runRoute, preset, origin, destination]);
 
   if (mapTheme !== appliedTheme) {
     setAppliedTheme(mapTheme);
@@ -1894,6 +2261,9 @@ export function CampusMap() {
     setPendingPreset(null);
     setPickingSlot(null);
     setNightChoiceOpen(false);
+    lastRouteRef.current = null;
+    setClosureOverride(null);
+    setRouteIsolated(false);
     inject(`if (typeof window.clearRoute === 'function') window.clearRoute();`);
   }, [inject]);
 
@@ -2233,6 +2603,33 @@ export function CampusMap() {
     clearRouteLine,
   ]);
 
+  /** Mantener presionado el mapa mueve la ubicación simulada a ese punto. */
+  const placeTestLocation = useCallback(
+    (raw: LatLng) => {
+      if (POSITION_MODE !== "simulated") {
+        setStatus("La ubicación de prueba no está disponible en modo GPS");
+        setTimeout(() => {
+          setStatus((prev) => (prev.startsWith("La ubicación de prueba") ? "" : prev));
+        }, 2600);
+        return;
+      }
+      const point = snapCampusPoint(raw);
+      setMockLocationActive(true);
+      setUserLocation(point);
+      setUserOutsideCampus(false);
+      inject(`
+        if (typeof window.setUserLocation === 'function') {
+          window.setUserLocation(${point.longitude}, ${point.latitude}, false);
+        }
+      `);
+      setStatus("Ubicación de prueba fijada aquí");
+      setTimeout(() => {
+        setStatus((prev) => (prev === "Ubicación de prueba fijada aquí" ? "" : prev));
+      }, 2600);
+    },
+    [inject],
+  );
+
   const closeAssistant = useCallback(() => {
     if (assistantLoading) return;
     setAssistantError(null);
@@ -2381,6 +2778,193 @@ export function CampusMap() {
     }
   }, [assistantLoading, routing, assistantPrompt, placeCatalog, destinations, runRoute, catalog]);
 
+  useEffect(() => {
+    if (!mapLoaded) return;
+    const payload = JSON.stringify(closuresGeoJson(closures));
+    inject(`if (typeof window.setClosures === 'function') window.setClosures(${payload});`);
+  }, [mapLoaded, closures, inject]);
+
+  useEffect(() => {
+    if (!mapLoaded) return;
+    const payload = JSON.stringify(draftGeoJson(reportMode ? draftKeys : []));
+    inject(`if (typeof window.setClosureDraft === 'function') window.setClosureDraft(${payload});`);
+  }, [mapLoaded, reportMode, draftKeys, inject]);
+
+  const startReport = useCallback(() => {
+    setThemeMenuOpen(false);
+    if (!userId) {
+      setStatus("Inicia sesión para reportar una vía cerrada");
+      setTimeout(() => {
+        setStatus((prev) => (prev.startsWith("Inicia sesión para reportar") ? "" : prev));
+      }, 2800);
+      setProfileOpen(true);
+      return;
+    }
+    Keyboard.dismiss();
+    setSelected(null);
+    setDraftKeys([]);
+    setReportHint(null);
+    setReportMode(true);
+  }, [userId, setProfileOpen]);
+
+  const cancelReport = useCallback(() => {
+    setReportMode(false);
+    setDraftKeys([]);
+    setReportHint(null);
+  }, []);
+
+  const toggleDraftSegment = useCallback(
+    (point: LatLng) => {
+      const segment = segmentAtPoint(point, 25);
+      if (!segment) {
+        setReportHint("Toca más cerca de un sendero, pasillo o vía.");
+        return;
+      }
+      const existing = closures.find((closure) => closure.segmentKeys.includes(segment.key));
+      if (existing) {
+        setReportHint("Ese tramo ya tiene un reporte. Valídalo en lugar de crear otro.");
+        setDetailId(existing.id);
+        return;
+      }
+      if (draftKeys.includes(segment.key)) {
+        setDraftKeys(draftKeys.filter((key) => key !== segment.key));
+        setReportHint(null);
+        return;
+      }
+      if (draftKeys.length >= CLOSURE_MAX_SEGMENTS) {
+        setReportHint(`Un reporte admite hasta ${CLOSURE_MAX_SEGMENTS} tramos.`);
+        return;
+      }
+      setDraftKeys([...draftKeys, segment.key]);
+      setReportHint(segment.name ? `${segment.name}. Toca otra vez para quitarlo.` : null);
+    },
+    [closures, draftKeys],
+  );
+
+  const openComposer = useCallback(() => {
+    if (draftKeys.length === 0) return;
+    reportedRef.current = false;
+    setComposerKey((key) => key + 1);
+    setComposerOpen(true);
+  }, [draftKeys.length]);
+
+  const closeComposer = useCallback(() => {
+    setComposerOpen(false);
+    if (reportedRef.current) cancelReport();
+  }, [cancelReport]);
+
+  const draftOnSite = isOnSite(position, draftKeys);
+  const draftDistanceM =
+    position && draftKeys.length > 0 ? distanceToSegmentsM(position.point, draftKeys) : null;
+  const draftLabel = useMemo(() => {
+    const names = [...new Set(draftKeys.map((key) => campusSegment(key)?.name).filter(Boolean))];
+    if (names.length === 0) return null;
+    const count = draftKeys.length === 1 ? "1 tramo" : `${draftKeys.length} tramos`;
+    return `${names.slice(0, 2).join(", ")} · ${count}`;
+  }, [draftKeys]);
+
+  const submitReport = useCallback(
+    async (draft: { category: ActiveClosure["category"]; description: string; estimatedHours: number | null }) => {
+      await reportClosureNow({
+        segmentKeys: draftKeys,
+        category: draft.category,
+        description: draft.description,
+        estimatedHours: draft.estimatedHours,
+        onSite: isOnSite(position, draftKeys),
+        positionSource: serverPositionSource(position),
+      });
+      reportedRef.current = true;
+    },
+    [draftKeys, position, reportClosureNow],
+  );
+
+  const detailClosure = detailId != null ? (closures.find((item) => item.id === detailId) ?? null) : null;
+
+  const castVote = useCallback(
+    async (closure: ActiveClosure, choice: "still_closed" | "now_open") => {
+      await voteClosureNow(
+        closure.id,
+        choice,
+        isOnSite(position, closure.segmentKeys),
+        serverPositionSource(position),
+      );
+      await markClosurePrompted(closure.id, userId);
+      setPromptedIds((current) => new Set(current).add(closure.id));
+    },
+    [position, userId, voteClosureNow],
+  );
+
+  const promptClosure = useMemo(() => {
+    if (!userId || reportMode || composerOpen || detailId != null || !positionIsTrusted(position)) return null;
+    let best: { closure: ActiveClosure; distanceM: number } | null = null;
+    for (const closure of closures) {
+      if (closure.mine || closure.source === "admin" || myVotes.has(closure.id) || promptedIds.has(closure.id)) {
+        continue;
+      }
+      const distanceM = distanceToSegmentsM(position.point, closure.segmentKeys);
+      if (distanceM <= ON_SITE_RADIUS_M && (!best || distanceM < best.distanceM)) {
+        best = { closure, distanceM };
+      }
+    }
+    return best;
+  }, [userId, reportMode, composerOpen, detailId, position, closures, myVotes, promptedIds]);
+
+  const dismissPrompt = useCallback(
+    async (closureId: number) => {
+      setPromptedIds((current) => new Set(current).add(closureId));
+      await markClosurePrompted(closureId, userId);
+    },
+    [userId],
+  );
+
+  const closureNotice = useMemo<RouteClosureNotice | null>(() => {
+    if (routeIsolated) {
+      return {
+        tone: "danger",
+        text: "El destino quedó aislado por una vía cerrada. No hay otro camino abierto.",
+        actionLabel: "Mostrar ruta igualmente",
+        onAction: () => setClosureOverride({ kind: "relaxed" }),
+      };
+    }
+    if (!route || route.coordinates.length < 2) return null;
+    if (closureOverride?.kind === "relaxed") {
+      const crossing = segmentsOnRoute(route.coordinates, baseImpact.blocked);
+      return crossing.length
+        ? { tone: "danger", text: "Esta ruta cruza una vía cerrada. Puede que no puedas pasar." }
+        : null;
+    }
+    const crossingReported = segmentsOnRoute(route.coordinates, effectiveImpact.penalized);
+    if (crossingReported.length) {
+      return {
+        tone: "warning",
+        text: "La ruta pasa por un tramo reportado como cerrado, aún sin confirmar.",
+        actionLabel: "Evitar de todos modos",
+        onAction: () =>
+          setClosureOverride((current) => ({
+            kind: "avoid",
+            keys: [...(current?.kind === "avoid" ? current.keys : []), ...crossingReported],
+          })),
+      };
+    }
+    const nearby = segmentsOnRoute(
+      route.coordinates,
+      [...effectiveImpact.blocked, ...effectiveImpact.penalized],
+      AVOIDED_NEAR_M,
+    );
+    if (nearby.length === 0) return null;
+    const ids = new Set(
+      closures.filter((closure) => closure.segmentKeys.some((key) => nearby.includes(key))).map((c) => c.id),
+    );
+    const count = Math.max(1, ids.size);
+    return {
+      tone: "info",
+      text:
+        count === 1
+          ? "La ruta evita una vía cerrada cercana."
+          : `La ruta evita ${count} vías cerradas cercanas.`,
+    };
+  }, [routeIsolated, route, closureOverride, baseImpact, effectiveImpact, closures]);
+
   const onMessage = useCallback(
     (event: WebViewMessageEvent) => {
       try {
@@ -2393,6 +2977,7 @@ export function CampusMap() {
           building?: BuildingProperties | null;
           spaceId?: string | null;
           bathroomEdificio?: string | null;
+          closureId?: number | null;
         };
         if (data.type === "map-ready") {
           setStatus("Preparando campus…");
@@ -2408,13 +2993,25 @@ export function CampusMap() {
           );
         } else if (data.type === "view-mode") {
           setView3d(data.mode !== "2d");
+        } else if (data.type === "map-long-press") {
+          if (typeof data.longitude === "number" && typeof data.latitude === "number") {
+            placeTestLocation({ longitude: data.longitude, latitude: data.latitude });
+          }
         } else if (data.type === "map-click") {
           Keyboard.dismiss();
           setQuery("");
           setThemeMenuOpen(false);
           if (typeof data.longitude === "number" && typeof data.latitude === "number") {
             const point = { longitude: data.longitude, latitude: data.latitude };
+            if (reportMode) {
+              toggleDraftSegment(point);
+              return;
+            }
             const slot = inTripRef.current && tabRef.current === "map" ? searchSlotRef.current : null;
+            if (!slot && typeof data.closureId === "number") {
+              setDetailId(data.closureId);
+              return;
+            }
             const bathroomCode =
               typeof data.bathroomEdificio === "string" && data.bathroomEdificio
                 ? data.bathroomEdificio
@@ -2445,7 +3042,17 @@ export function CampusMap() {
         // ignore
       }
     },
-    [injectLayers, assignPoint, showPlace, inject, destinations, catalog],
+    [
+      injectLayers,
+      assignPoint,
+      showPlace,
+      inject,
+      destinations,
+      catalog,
+      reportMode,
+      toggleDraftSegment,
+      placeTestLocation,
+    ],
   );
 
   const startTour = useCallback(
@@ -2591,18 +3198,83 @@ export function CampusMap() {
         placeholder={searchPlaceholder}
       />
 
-      <MapControls
-        top={insets.top + 8}
-        view3d={view3d}
-        onToggleView={toggleView}
-        locating={locating}
-        onLocate={locateMe}
-        themeMode={themeMode}
-        theme={mapTheme}
-        themeBusy={themeBusy}
-        themeMenuOpen={themeMenuOpen}
-        onThemeMenuOpenChange={setThemeMenuOpen}
-        onThemeModeChange={setThemeMode}
+      {reportMode ? null : (
+        <MapControls
+          top={insets.top + 8}
+          view3d={view3d}
+          onToggleView={toggleView}
+          locating={locating}
+          onLocate={locateMe}
+          themeMode={themeMode}
+          theme={mapTheme}
+          themeBusy={themeBusy}
+          themeMenuOpen={themeMenuOpen}
+          onThemeMenuOpenChange={setThemeMenuOpen}
+          onThemeModeChange={setThemeMode}
+          onReportClosure={startReport}
+        />
+      )}
+
+      {reportMode ? (
+        <ClosureReportBar
+          top={insets.top + 8}
+          selectedCount={draftKeys.length}
+          maxSegments={CLOSURE_MAX_SEGMENTS}
+          hint={reportHint}
+          onCancel={cancelReport}
+          onContinue={openComposer}
+        />
+      ) : null}
+
+      {promptClosure ? (
+        <ClosurePromptCard
+          key={promptClosure.closure.id}
+          bottom={Math.max(chromeBottom, tabBarHeight) + 12}
+          closure={promptClosure.closure}
+          distanceM={promptClosure.distanceM}
+          simulated={position?.isSimulated ?? true}
+          onVote={(choice) => castVote(promptClosure.closure, choice)}
+          onDismiss={() => {
+            void dismissPrompt(promptClosure.closure.id);
+          }}
+          onOpen={() => setDetailId(promptClosure.closure.id)}
+        />
+      ) : null}
+
+      <ClosureComposer
+        key={composerKey}
+        visible={composerOpen}
+        segmentCount={draftKeys.length}
+        placeLabel={draftLabel}
+        onSite={draftOnSite}
+        distanceM={draftDistanceM}
+        simulated={position?.isSimulated ?? true}
+        onSubmit={submitReport}
+        onClose={closeComposer}
+        onSeeMine={() => {
+          closeComposer();
+          setProfileOpen(true);
+        }}
+      />
+
+      <ClosureDetail
+        key={detailClosure?.id ?? "none"}
+        closure={detailClosure}
+        myVote={detailClosure ? (myVotes.get(detailClosure.id) ?? null) : null}
+        signedIn={userId != null}
+        onSite={detailClosure ? isOnSite(position, detailClosure.segmentKeys) : false}
+        distanceM={
+          detailClosure && position ? distanceToSegmentsM(position.point, detailClosure.segmentKeys) : null
+        }
+        simulated={position?.isSimulated ?? true}
+        onVote={async (choice) => {
+          if (detailClosure) await castVote(detailClosure, choice);
+        }}
+        onSignIn={() => {
+          setDetailId(null);
+          setProfileOpen(true);
+        }}
+        onClose={() => setDetailId(null)}
       />
 
       {exploreSheet.mounted && shownPlace ? (
@@ -2727,6 +3399,7 @@ export function CampusMap() {
             void runRoute(origin, destination, streetProfileRef.current, cost);
           }}
           error={routeError}
+          closureNotice={closureNotice}
           routing={routing}
           streetProfile={streetProfile}
           onStreetProfileChange={changeStreetProfile}

@@ -34,9 +34,58 @@ type RouteSheetProps = {
   presetName?: string | null;
   presetStops?: { letter: string; name: string }[] | null;
   pendingPresetName?: string | null;
+  /** Aviso de vías cerradas: la ruta las evita, cruza una reportada o el destino quedó aislado. */
+  closureNotice?: RouteClosureNotice | null;
   visible?: boolean;
   onExited?: () => void;
 };
+
+export type RouteClosureNotice = {
+  tone: "info" | "warning" | "danger";
+  text: string;
+  actionLabel?: string;
+  onAction?: () => void;
+};
+
+const NOTICE_TONE: Record<RouteClosureNotice["tone"], { box: string; text: string; icon: string }> = {
+  info: {
+    box: "bg-[#eef2ff] dark:bg-[#1b2433]",
+    text: "text-[#1d4ed8] dark:text-[#93c5fd]",
+    icon: "accent-[#1d4ed8] dark:accent-[#93c5fd]",
+  },
+  warning: {
+    box: "bg-[#fff7e6] dark:bg-[#2a2213]",
+    text: "text-[#9a5b00] dark:text-[#f5c46b]",
+    icon: "accent-[#9a5b00] dark:accent-[#f5c46b]",
+  },
+  danger: {
+    box: "bg-[#fff5f5] dark:bg-[#2a1517]",
+    text: "text-[#b42318] dark:text-[#ff9b93]",
+    icon: "accent-[#b42318] dark:accent-[#ff9b93]",
+  },
+};
+
+function ClosureNotice({ notice }: { notice: RouteClosureNotice }) {
+  const tone = NOTICE_TONE[notice.tone];
+  return (
+    <View className={`mt-3 rounded-2xl px-3 py-3 ${tone.box}`}>
+      <View className="flex-row items-start">
+        <Icon name="block" size={18} colorClassName={tone.icon} />
+        <Text className={`ml-2 flex-1 text-[13px] font-semibold leading-5 ${tone.text}`}>{notice.text}</Text>
+      </View>
+      {notice.actionLabel && notice.onAction ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={notice.actionLabel}
+          onPress={notice.onAction}
+          className="ml-6.5 mt-2 self-start rounded-full bg-white/70 px-3 py-1.5 active:opacity-70 dark:bg-black/20"
+        >
+          <Text className={`text-[13px] font-bold ${tone.text}`}>{notice.actionLabel}</Text>
+        </Pressable>
+      ) : null}
+    </View>
+  );
+}
 
 function ModeToggle({
   value,
@@ -202,6 +251,7 @@ export function RouteSheet({
   presetName = null,
   presetStops = null,
   pendingPresetName = null,
+  closureNotice = null,
   visible,
   onExited,
 }: RouteSheetProps) {
@@ -462,6 +512,8 @@ export function RouteSheet({
           </Text>
         </View>
       ) : null}
+
+      {closureNotice ? <ClosureNotice notice={closureNotice} /> : null}
     </SnapSheet>
   );
 }

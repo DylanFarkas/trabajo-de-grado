@@ -52,3 +52,73 @@ export function isContributionStatus(value: string): value is ContributionStatus
 export function contributionStatusLabel(status: string) {
   return isContributionStatus(status) ? CONTRIBUTION_STATUS_LABELS[status] : status;
 }
+
+export const CLOSURE_STATUSES = [
+  "candidate",
+  "provisional",
+  "confirmed",
+  "expired",
+  "reopened",
+  "rejected",
+] as const;
+export type ClosureStatus = (typeof CLOSURE_STATUSES)[number];
+
+export const CLOSURE_STATUS_LABELS: Record<ClosureStatus, string> = {
+  candidate: "Por confirmar",
+  provisional: "Reportado en sitio",
+  confirmed: "Cerrado",
+  expired: "Vencido",
+  reopened: "Reabierto",
+  rejected: "Rechazado",
+};
+
+export const CLOSURE_OPEN_STATUSES: readonly ClosureStatus[] = ["candidate", "provisional", "confirmed"];
+
+export const CLOSURE_CATEGORIES = ["obra", "evento", "inundacion", "dano", "otro"] as const;
+export type ClosureCategory = (typeof CLOSURE_CATEGORIES)[number];
+
+export const CLOSURE_CATEGORY_LABELS: Record<ClosureCategory, string> = {
+  obra: "Obra",
+  evento: "Evento",
+  inundacion: "Inundación",
+  dano: "Daño en la vía",
+  otro: "Otro",
+};
+
+/** Duraciones que ofrece el panel. La base acepta hasta 90 días. */
+export const CLOSURE_DURATIONS: { hours: number; label: string }[] = [
+  { hours: 2, label: "2 horas" },
+  { hours: 6, label: "6 horas" },
+  { hours: 12, label: "12 horas" },
+  { hours: 24, label: "1 día" },
+  { hours: 72, label: "3 días" },
+  { hours: 168, label: "1 semana" },
+  { hours: 720, label: "30 días" },
+  { hours: 2160, label: "90 días" },
+];
+
+export const CLOSURE_DESCRIPTION_MIN = 10;
+export const CLOSURE_DESCRIPTION_MAX = 500;
+export const CLOSURE_NOTE_MAX = 500;
+export const CLOSURE_MAX_SEGMENTS = 40;
+
+export function isClosureCategory(value: string): value is ClosureCategory {
+  return (CLOSURE_CATEGORIES as readonly string[]).includes(value);
+}
+
+export function closureStatusLabel(status: string) {
+  return (CLOSURE_STATUSES as readonly string[]).includes(status)
+    ? CLOSURE_STATUS_LABELS[status as ClosureStatus]
+    : status;
+}
+
+export function closureCategoryLabel(category: string) {
+  return isClosureCategory(category) ? CLOSURE_CATEGORY_LABELS[category] : category;
+}
+
+export function closureStatusTone(status: string): "ok" | "muted" | "warn" | "danger" {
+  if (status === "confirmed") return "danger";
+  if (status === "provisional") return "warn";
+  if (status === "reopened") return "ok";
+  return "muted";
+}

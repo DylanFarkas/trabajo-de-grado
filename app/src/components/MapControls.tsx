@@ -27,6 +27,7 @@ type MapControlsProps = {
   themeMenuOpen?: boolean;
   onThemeMenuOpenChange?: (open: boolean) => void;
   onThemeModeChange?: (mode: MapThemeMode) => void;
+  onReportClosure?: () => void;
 };
 
 export function MapControls({
@@ -41,6 +42,7 @@ export function MapControls({
   themeMenuOpen = false,
   onThemeMenuOpenChange,
   onThemeModeChange,
+  onReportClosure,
 }: MapControlsProps) {
   const night = theme === "night";
   const showTheme = Boolean(themeMode && onThemeModeChange);
@@ -131,6 +133,19 @@ export function MapControls({
                 <Text className="text-[8px] font-extrabold text-white dark:text-[#0b0f16]">A</Text>
               </View>
             ) : null}
+          </View>
+        </Pressable>
+      ) : null}
+
+      {onReportClosure && !themeMenuOpen ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Reportar vía cerrada"
+          onPress={onReportClosure}
+          className="mt-2 active:opacity-80"
+        >
+          <View className="size-11 items-center justify-center rounded-full bg-white shadow-md dark:bg-[#161d27]">
+            <Icon name="block" size={21} colorClassName="accent-[#b42318] dark:accent-[#ff9b93]" />
           </View>
         </Pressable>
       ) : null}

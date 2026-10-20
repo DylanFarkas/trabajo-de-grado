@@ -13,13 +13,20 @@ export default async function Home({
   const profile = await getSessionProfile();
   const params = await searchParams;
   let pending = 0;
+  let disputed = 0;
   if (profile?.role === "admin") {
     const supabase = await createClient();
-    const { count } = await supabase
-      .from("contributions")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "pending");
+    const [{ count }, { count: disputedCount }] = await Promise.all([
+      supabase.from("contributions").select("id", { count: "exact", head: true }).eq("status", "pending"),
+      supabase
+        .from("road_closures")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "confirmed")
+        .gt("deny_score", 0)
+        .gt("expires_at", new Date().toISOString()),
+    ]);
     pending = count ?? 0;
+    disputed = disputedCount ?? 0;
   }
 
   return (
@@ -72,6 +79,15 @@ where email = '${profile.email ?? ""}';`}</pre>
             />
             <NavCard href="/categories" title="Categorías" description="Lista y fichas. Se asignan en cada edificio." />
             <NavCard href="/routes" title="Rutas" description="Crea rutas personalizadas." />
+            <NavCard
+              href="/closures"
+              title="Vías cerradas"
+              description={
+                disputed > 0
+                  ? `${disputed} ${disputed === 1 ? "cierre tiene" : "cierres tienen"} votos de que ya está abierta.`
+                  : "La comunidad valida los reportes. Cierra tramos desde el mapa."
+              }
+            />
           </div>
         </section>
       )}

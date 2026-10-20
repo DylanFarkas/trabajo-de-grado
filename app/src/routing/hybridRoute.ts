@@ -5,7 +5,10 @@ import {
   type CampusEntrance,
 } from "@/constants/entrances";
 import {
+  currentClosureImpact,
   motorcycleParking,
+  setClosureImpact,
+  type ClosureImpact,
   nearestBikeParking,
   nearestDriveParking,
   nearestNodeId,
@@ -54,6 +57,14 @@ export class CampusRouteError extends Error {
   }
 }
 
+/** Solo hay camino cruzando un tramo cerrado. La UI puede ofrecer mostrarlo igual. */
+export class ClosureIsolationError extends CampusRouteError {
+  constructor() {
+    super("El destino quedó aislado por una vía cerrada. No hay otro camino abierto.");
+    this.name = "ClosureIsolationError";
+  }
+}
+
 const ON_ROAD_M = 40;
 const CAMPUS_DRIVE_MPS = 6;
 const CAMPUS_BIKE_MPS = 4;
@@ -82,7 +93,7 @@ export function pickBestEntrance(
     let campusM = 0;
     if (campusDestination && !samePoint(entrance.point, campusDestination)) {
       const campusPath = routeBetweenPoints(entrance.point, campusDestination);
-      campusM = campusPath?.distanceM ?? haversineM(entrance.point, campusDestination);
+      campusM = campusPath?.costM ?? campusPath?.distanceM ?? haversineM(entrance.point, campusDestination);
     }
     const score = streetApprox + campusM;
     if (score < bestScore) {
@@ -109,6 +120,40 @@ export async function routeHybrid(
   destination: LatLng,
   profile: StreetProfile = "foot-walking",
   walkCost: WalkCost = "short",
+): Promise<HybridRouteResult | null> {
+  const impact = currentClosureImpact();
+  let failure: unknown = null;
+  try {
+    const result = await routeAnyMode(origin, destination, profile, walkCost);
+    if (result || impact.blocked.size === 0) return result;
+  } catch (error) {
+    if (!(error instanceof CampusRouteError) || impact.blocked.size === 0) throw error;
+    failure = error;
+  }
+
+  const relaxed: ClosureImpact = {
+    blocked: new Set(),
+    penalized: new Set([...impact.blocked, ...impact.penalized]),
+  };
+  setClosureImpact(relaxed);
+  let reachable = false;
+  try {
+    reachable = (await routeAnyMode(origin, destination, profile, walkCost)) != null;
+  } catch {
+    reachable = false;
+  } finally {
+    setClosureImpact(impact);
+  }
+  if (reachable) throw new ClosureIsolationError();
+  if (failure) throw failure;
+  return null;
+}
+
+async function routeAnyMode(
+  origin: LatLng,
+  destination: LatLng,
+  profile: StreetProfile,
+  walkCost: WalkCost,
 ): Promise<HybridRouteResult | null> {
   if (profile === "driving-car") {
     return routeByCar(origin, destination);
@@ -286,7 +331,7 @@ function pickDrivingGate(
       ? routeBetweenPoints(entrance.point, campusPoint, "drive")
       : routeBetweenPoints(campusPoint, entrance.point, "drive");
     if (!drive) continue;
-    const score = street + drive.distanceM;
+    const score = street + (drive.costM ?? drive.distanceM);
     if (score < bestScore) {
       bestScore = score;
       best = entrance;
@@ -333,7 +378,8 @@ function walkFromMotoParking(door: LatLng): number {
   const lot = motorcycleParking();
   const lotPoint = lot ? lotPointOf(lot.id) : null;
   if (!lot || !lotPoint) return Infinity;
-  return routeBetweenPoints(lotPoint, door, "walk")?.distanceM ?? Infinity;
+  const walk = routeBetweenPoints(lotPoint, door, "walk");
+  return walk ? (walk.costM ?? walk.distanceM) : Infinity;
 }
 
 function motoParkingName(space: { etiqueta: string | null; nombre: string }): string {
@@ -754,7 +800,7 @@ export function orderStopsFromOrigin<T extends { point: LatLng }>(
     dist[i][i] = 0;
     for (let j = i + 1; j < size; j += 1) {
       const leg = routeBetweenPoints(nodes[i], nodes[j]);
-      const meters = leg?.distanceM ?? Infinity;
+      const meters = leg ? (leg.costM ?? leg.distanceM) : Infinity;
       dist[i][j] = meters;
       dist[j][i] = meters;
     }

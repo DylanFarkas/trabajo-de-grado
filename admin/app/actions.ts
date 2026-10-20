@@ -5,8 +5,13 @@ import { redirect } from "next/navigation";
 
 import { getSessionProfile } from "@/lib/auth";
 import {
+  CLOSURE_DESCRIPTION_MAX,
+  CLOSURE_DESCRIPTION_MIN,
+  CLOSURE_MAX_SEGMENTS,
+  CLOSURE_NOTE_MAX,
   CONTRIBUTION_BODY_MAX,
   CONTRIBUTION_NOTE_MAX,
+  isClosureCategory,
   isContributionStatus,
   isKind,
   isTone,
@@ -379,4 +384,109 @@ export async function deleteContribution(formData: FormData) {
   if (data) revalidateContribution(data.place_id);
   else revalidatePath("/contributions");
   redirect("/contributions");
+}
+
+const SEGMENT_KEY = /^(osm|pasillo):[0-9]+$/;
+const CLOSURE_MAX_HOURS = 90 * 24;
+
+export type ClosureFormState = { error: string | null; existingId?: number | null };
+
+function closureErrorMessage(error: { message: string; details?: string | null }) {
+  const detail = error.details?.trim();
+  if (error.message === "closure_overlap") {
+    return {
+      error: "Uno de los tramos ya tiene un cierre activo. Ábrelo para confirmarlo o extenderlo.",
+      existingId: Number(detail) || null,
+    };
+  }
+  if (error.message.startsWith("closure_") && detail) return { error: detail };
+  return { error: error.message };
+}
+
+function revalidateClosures(id?: number) {
+  revalidatePath("/closures");
+  if (id != null) revalidatePath(`/closures/${id}`);
+}
+
+export async function createAdminClosure(
+  _state: ClosureFormState,
+  formData: FormData,
+): Promise<ClosureFormState> {
+  const supabase = await adminClient();
+  let keys: unknown;
+  try {
+    keys = JSON.parse(String(formData.get("segment_keys") ?? "[]"));
+  } catch {
+    keys = [];
+  }
+  const segmentKeys = Array.isArray(keys)
+    ? [...new Set(keys.filter((key): key is string => typeof key === "string" && SEGMENT_KEY.test(key)))]
+    : [];
+  const category = String(formData.get("category") ?? "");
+  const description = String(formData.get("description") ?? "").trim();
+  const hours = Number(formData.get("duration_hours"));
+
+  if (segmentKeys.length === 0) return { error: "Elige al menos un tramo en el mapa." };
+  if (segmentKeys.length > CLOSURE_MAX_SEGMENTS) {
+    return { error: `Un cierre admite hasta ${CLOSURE_MAX_SEGMENTS} tramos.` };
+  }
+  if (!isClosureCategory(category)) return { error: "Elige el motivo del cierre." };
+  if (description.length < CLOSURE_DESCRIPTION_MIN || description.length > CLOSURE_DESCRIPTION_MAX) {
+    return {
+      error: `La descripción debe tener entre ${CLOSURE_DESCRIPTION_MIN} y ${CLOSURE_DESCRIPTION_MAX} caracteres.`,
+    };
+  }
+  if (!Number.isFinite(hours) || hours < 1 || hours > CLOSURE_MAX_HOURS) {
+    return { error: "Elige cuánto dura el cierre." };
+  }
+
+  const { data, error } = await supabase.rpc("report_closure", {
+    p_segment_keys: segmentKeys,
+    p_category: category,
+    p_description: description,
+    p_on_site: false,
+    p_position_source: "simulated",
+    p_estimated_hours: Math.min(720, Math.round(hours)),
+    p_as_admin: true,
+    p_expires_at: new Date(Date.now() + hours * 3_600_000).toISOString(),
+  });
+  if (error) return closureErrorMessage(error);
+  revalidateClosures();
+  redirect(`/closures/${Number(data)}`);
+}
+
+export async function resolveClosure(formData: FormData) {
+  const supabase = await adminClient();
+  const id = Number(formData.get("id"));
+  const decision = String(formData.get("decision") ?? "");
+  const note = String(formData.get("review_note") ?? "").trim();
+  if (!Number.isInteger(id) || !["confirmed", "rejected", "reopened"].includes(decision)) {
+    throw new Error("No se pudo resolver el cierre.");
+  }
+  if (note.length > CLOSURE_NOTE_MAX) {
+    throw new Error(`La nota admite hasta ${CLOSURE_NOTE_MAX} caracteres.`);
+  }
+  const { error } = await supabase
+    .from("road_closures")
+    .update({ status: decision, review_note: note || null })
+    .eq("id", id);
+  if (error) throw new Error(closureErrorMessage(error).error);
+  revalidateClosures(id);
+  redirect(`/closures/${id}`);
+}
+
+export async function extendClosure(formData: FormData) {
+  const supabase = await adminClient();
+  const id = Number(formData.get("id"));
+  const hours = Number(formData.get("duration_hours"));
+  if (!Number.isInteger(id) || !Number.isFinite(hours) || hours < 1 || hours > CLOSURE_MAX_HOURS) {
+    throw new Error("Elige cuánto más dura el cierre.");
+  }
+  const { error } = await supabase
+    .from("road_closures")
+    .update({ expires_at: new Date(Date.now() + hours * 3_600_000).toISOString() })
+    .eq("id", id);
+  if (error) throw new Error(closureErrorMessage(error).error);
+  revalidateClosures(id);
+  redirect(`/closures/${id}`);
 }

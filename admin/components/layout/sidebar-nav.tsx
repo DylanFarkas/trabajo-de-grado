@@ -2,7 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Building, MessageSquareText, Route, SquareParking, Tag, type LucideIcon } from "lucide-react";
+import {
+  Building,
+  MessageSquareText,
+  OctagonX,
+  Route,
+  SquareParking,
+  Tag,
+  type LucideIcon,
+} from "lucide-react";
 
 import { CollapsibleLabel } from "@/components/layout/collapsible-label";
 
@@ -12,6 +20,7 @@ const items: { href: string; label: string; icon: LucideIcon }[] = [
   { href: "/contributions", label: "Información", icon: MessageSquareText },
   { href: "/categories", label: "Categorías", icon: Tag },
   { href: "/routes", label: "Rutas", icon: Route },
+  { href: "/closures", label: "Vías cerradas", icon: OctagonX },
 ];
 
 export function SidebarNav({ collapsed }: { collapsed: boolean }) {
