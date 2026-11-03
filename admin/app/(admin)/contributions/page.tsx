@@ -14,6 +14,7 @@ type Row = {
   place_id: string;
   body: string;
   status: string;
+  active: boolean;
   created_at: string;
   place: { name: string } | null;
   author: { full_name: string | null; email: string | null } | null;
@@ -24,7 +25,7 @@ export default async function ContributionsPage() {
   const { data, error } = await supabase
     .from("contributions")
     .select(
-      "id, place_id, body, status, created_at, place:places(name), author:profiles!author_id(full_name, email)",
+      "id, place_id, body, status, active, created_at, place:places(name), author:profiles!author_id(full_name, email)",
     )
     .order("created_at", { ascending: false })
     .overrideTypes<Row[], { merge: false }>();
@@ -36,6 +37,7 @@ export default async function ContributionsPage() {
     body: row.body,
     author: row.author?.full_name ?? row.author?.email ?? "—",
     status: row.status,
+    active: row.active,
     createdAt: row.created_at,
   }));
 
@@ -44,7 +46,7 @@ export default async function ContributionsPage() {
       <PageHeader
         crumbs={[{ href: "/", label: "Inicio" }, { label: "Información" }]}
         title="Información"
-        subtitle="Aportes de los usuarios y textos de los espacios. Solo lo publicado se ve en la app."
+        subtitle="Aportes de los usuarios y textos de los espacios. En la app solo se ve lo publicado y activo."
       >
         <Link className={buttonClass("primary", undefined, "lg")} href="/contributions/new">
           Agregar información

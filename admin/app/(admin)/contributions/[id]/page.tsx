@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { deleteContribution, reviewContribution } from "@/app/actions";
+import { deleteContribution, reviewContribution, setContributionActive } from "@/app/actions";
 import { ContributionForm } from "@/app/(admin)/contributions/contribution-form";
 import { StatusPill } from "@/components/catalog/status-pill";
 import { PageHeader } from "@/components/layout/page-header";
@@ -17,6 +17,7 @@ type Detail = {
   place_id: string;
   body: string;
   status: string;
+  active: boolean;
   review_note: string | null;
   created_at: string;
   reviewed_at: string | null;
@@ -40,7 +41,7 @@ export default async function ContributionPage({
   const { data } = await supabase
     .from("contributions")
     .select(
-      "id, place_id, body, status, review_note, created_at, reviewed_at, place:places(name), author:profiles!author_id(full_name, email), reviewer:profiles!reviewer_id(full_name, email)",
+      "id, place_id, body, status, active, review_note, created_at, reviewed_at, place:places(name), author:profiles!author_id(full_name, email), reviewer:profiles!reviewer_id(full_name, email)",
     )
     .eq("id", numericId)
     .maybeSingle()
@@ -112,12 +113,30 @@ export default async function ContributionPage({
                 ) : null}
               </div>
             </form>
+
+            <form action={setContributionActive} className="grid gap-3 border-t border-zinc-100 pt-4 dark:border-zinc-800">
+              <input type="hidden" name="id" value={data.id} />
+              <label className="flex items-start gap-3 rounded-xl bg-zinc-50 px-3 py-3 text-sm dark:bg-[#262626]">
+                <input className="mt-0.5" type="checkbox" name="active" defaultChecked={data.active} />
+                <span>
+                  <span className="font-medium text-zinc-900 dark:text-zinc-100">Activa</span>
+                  <span className="mt-0.5 block text-zinc-500 dark:text-zinc-400">
+                    No cambia si está publicada, pendiente o rechazada. Solo oculta o muestra el texto en la ficha de la app.
+                  </span>
+                </span>
+              </label>
+              <div>
+                <Button className="cursor-pointer" type="submit" variant="secondary">
+                  Guardar visibilidad
+                </Button>
+              </div>
+            </form>
           </section>
 
           <section className={cardClass}>
             <h2 className="text-lg font-semibold tracking-tight">Eliminar</h2>
             <p className="text-sm text-zinc-500 dark:text-zinc-400">
-              Borra este registro de forma definitiva. Si solo quieres ocultarlo de la app, devuélvelo a pendiente.
+              Borra este registro de forma definitiva. Para ocultarlo de la app sin cambiar la publicación, desactívalo arriba.
             </p>
             <form action={deleteContribution} className="flex items-center gap-4">
               <input type="hidden" name="id" value={data.id} />

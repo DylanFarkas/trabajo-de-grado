@@ -314,6 +314,7 @@ function contributionFields(formData: FormData) {
 function revalidateContribution(placeId: string) {
   revalidatePath("/contributions");
   revalidatePath(`/places/${placeId}`);
+  revalidatePath(`/espacios/${placeId}`);
 }
 
 /** Crea (ya publicada) o edita información contextual de un espacio. */
@@ -345,6 +346,25 @@ export async function saveContribution(formData: FormData) {
     .single();
   if (error) throw new Error(error.message);
   revalidateContribution(data.place_id);
+  redirect(`/contributions/${id}`);
+}
+
+/** Oculta o muestra el texto en la ficha. No cambia si está publicado, pendiente o rechazado. */
+export async function setContributionActive(formData: FormData) {
+  const supabase = await adminClient();
+  const id = Number(formData.get("id"));
+  const active = formData.get("active") === "on";
+  if (!Number.isFinite(id)) throw new Error("La información no existe.");
+
+  const { data, error } = await supabase
+    .from("contributions")
+    .update({ active })
+    .eq("id", id)
+    .select("place_id")
+    .single();
+  if (error) throw new Error(error.message);
+  revalidateContribution(data.place_id);
+  revalidatePath(`/contributions/${id}`);
   redirect(`/contributions/${id}`);
 }
 

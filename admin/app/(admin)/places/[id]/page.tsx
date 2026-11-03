@@ -22,7 +22,7 @@ export default async function PlacePage({
     supabase.from("place_categories").select("category_id").eq("place_id", id),
     supabase
       .from("contributions")
-      .select("id, body, status, created_at")
+      .select("id, body, status, active, created_at")
       .eq("place_id", id)
       .order("created_at", { ascending: false }),
   ]);
@@ -48,7 +48,7 @@ export default async function PlacePage({
           <div>
             <h2 className="text-lg font-semibold tracking-tight">Información contextual</h2>
             <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-              Textos de este espacio: los aportes de usuarios y lo que registres aquí. La app muestra solo lo publicado.
+              Textos de este espacio: los aportes de usuarios y lo que registres aquí. La app muestra solo lo publicado y activo.
             </p>
           </div>
           <Link
@@ -74,6 +74,7 @@ export default async function PlacePage({
                     <StatusPill tone={row.status === "approved" ? "ok" : row.status === "rejected" ? "danger" : "warn"}>
                       {contributionStatusLabel(row.status)}
                     </StatusPill>
+                    {row.active ? null : <StatusPill tone="muted">Inactiva</StatusPill>}
                   </span>
                 </Link>
               </li>

@@ -14,6 +14,7 @@ export type ContributionRow = {
   body: string;
   author: string;
   status: string;
+  active: boolean;
   createdAt: string;
 };
 
@@ -49,12 +50,15 @@ const columns: ColumnDef<ContributionRow, unknown>[] = [
     accessorKey: "status",
     header: "Estado",
     filterFn: "equals",
-    cell: ({ getValue }) => {
-      const status = String(getValue());
+    cell: ({ row }) => {
+      const status = row.original.status;
       return (
-        <StatusPill tone={status === "approved" ? "ok" : status === "rejected" ? "danger" : "warn"}>
-          {contributionStatusLabel(status)}
-        </StatusPill>
+        <span className="flex items-center gap-2">
+          <StatusPill tone={status === "approved" ? "ok" : status === "rejected" ? "danger" : "warn"}>
+            {contributionStatusLabel(status)}
+          </StatusPill>
+          {row.original.active ? null : <StatusPill tone="muted">Inactiva</StatusPill>}
+        </span>
       );
     },
   },

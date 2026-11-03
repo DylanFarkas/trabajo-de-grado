@@ -53,7 +53,12 @@ function ContributionCard({
         <Text className="ml-2.5 min-w-0 flex-1 pr-2 text-[14px] font-bold text-[#111111]" numberOfLines={1}>
           {item.placeName}
         </Text>
-        <StatusBadge status={item.status} />
+        <View className="items-end">
+          <StatusBadge status={item.status} />
+          {item.status === "approved" && !item.active ? (
+            <Text className="mt-1 font-sans text-[11px] text-[#8e8e93]">Oculto en el mapa</Text>
+          ) : null}
+        </View>
       </View>
 
       <Text className="mt-3 font-sans text-[15px] leading-5.5 text-[#2c2c2e]" numberOfLines={5}>

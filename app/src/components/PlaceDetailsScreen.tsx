@@ -14,7 +14,7 @@ import {
 } from "@/bathrooms";
 import { ContributionComposer } from "@/components/ContributionComposer";
 import { OfficialMark } from "@/components/OfficialMark";
-import { fetchPublishedInfo, formatDate, submitInfo, type PublishedInfo } from "@/contributions";
+import { fetchPublishedInfo, formatShortDate, submitInfo, type PublishedInfo } from "@/contributions";
 import { useMapPanel, type PlaceDetailsTarget } from "@/map-panel";
 import type { CatalogTone } from "@/places";
 import type { BathroomAudience, BathroomUnit } from "@/types/campus";
@@ -109,11 +109,11 @@ function InfoCard({ entry }: { entry: PublishedInfo }) {
         elevation: 1,
       }}
     >
-      <Text className="font-sans text-[15px] leading-5.75 text-[#2c2c2e]">{entry.body}</Text>
-      <View className="mt-4 flex-row items-center">
-        <MaterialIcons name="verified" size={14} color="#1f8a4c" />
-        <Text className="ml-1 font-sans text-[12px] text-[#8e8e93]">Revisado · aportado el {formatDate(entry.createdAt)}</Text>
-      </View>
+      <MaterialIcons name="verified" size={14} color="#1f8a4c" style={{ position: "absolute", top: 27, right: 20 }} />
+      <Text className="pr-5 font-sans text-[15px] leading-5.75 text-[#2c2c2e]">{entry.body}</Text>
+      <Text className="mt-3 font-sans text-[12px] text-[#8e8e93]">
+        {[entry.authorName, formatShortDate(entry.createdAt)].filter(Boolean).join(" · ")}
+      </Text>
     </View>
   );
 }
