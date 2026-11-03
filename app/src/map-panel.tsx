@@ -8,8 +8,6 @@ import {
   type ReactNode,
 } from "react";
 
-import type { CatalogTone } from "@/places";
-
 export type MapPanel = "map" | "tours" | "reports" | "assistant";
 
 export type PlaceDetailsTarget = {
@@ -18,7 +16,6 @@ export type PlaceDetailsTarget = {
   subtitle: string | null;
   categories: string[];
   description: string | null;
-  tone: CatalogTone | null;
   /** null si el catálogo aún no cargó. */
   official: boolean | null;
 };

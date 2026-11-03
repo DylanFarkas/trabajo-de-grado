@@ -16,17 +16,11 @@ import { ContributionComposer } from "@/components/ContributionComposer";
 import { OfficialMark } from "@/components/OfficialMark";
 import { fetchPublishedInfo, formatShortDate, submitInfo, type PublishedInfo } from "@/contributions";
 import { useMapPanel, type PlaceDetailsTarget } from "@/map-panel";
-import type { CatalogTone } from "@/places";
 import type { BathroomAudience, BathroomUnit } from "@/types/campus";
 
-const TONE_COLORS: Record<CatalogTone | "none", { soft: string; strong: string }> = {
-  food: { soft: "#f6efe4", strong: "#9a6a2f" },
-  sport: { soft: "#e6f0e9", strong: "#2f6b4a" },
-  library: { soft: "#e7eef3", strong: "#335c7a" },
-  culture: { soft: "#f0e9ef", strong: "#7a4a6e" },
-  academic: { soft: "#ecebf5", strong: "#4b4a8a" },
-  none: { soft: "#f2f2f4", strong: "#111111" },
-};
+/** Lavado de #EB1D00 sobre blanco. El texto usa un rojo más oscuro para leerse encima. */
+const CARD_SURFACE = "#FBE9E6";
+const CARD_ACCENT = "#B81600";
 
 function SectionHeader({ title, count }: { title: string; count?: number }) {
   return (
@@ -43,7 +37,7 @@ function SectionHeader({ title, count }: { title: string; count?: number }) {
 
 const DESCRIPTION_PREVIEW_LINES = 3;
 
-function AboutSection({ text, accent }: { text: string; accent: string }) {
+function AboutSection({ text }: { text: string }) {
   const [expanded, setExpanded] = useState(false);
   const [overflows, setOverflows] = useState(false);
   const toggle = () => setExpanded((value) => !value);
@@ -74,7 +68,7 @@ function AboutSection({ text, accent }: { text: string; accent: string }) {
           {text}
         </Text>
         {overflows || expanded ? (
-          <Text className="mt-2 text-[14px] font-bold" style={{ color: accent }}>
+          <Text className="mt-2 text-[14px] font-bold" style={{ color: CARD_ACCENT }}>
             {expanded ? "Leer menos" : "Leer más"}
           </Text>
         ) : null}
@@ -237,8 +231,6 @@ export function PlaceDetailsScreen({ target }: { target: PlaceDetailsTarget }) {
   const { profile } = useAuth();
   const { closePlaceDetails, setProfileOpen } = useMapPanel();
   const userId = profile?.id ?? null;
-  const colors = TONE_COLORS[target.tone ?? "none"];
-
   const [info, setInfo] = useState<PublishedInfo[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [composerKey, setComposerKey] = useState(0);
@@ -288,11 +280,8 @@ export function PlaceDetailsScreen({ target }: { target: PlaceDetailsTarget }) {
         contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32, paddingTop: 8 }}
         showsVerticalScrollIndicator={false}
       >
-        <View className="flex-row items-center rounded-3xl p-4" style={{ backgroundColor: colors.soft }}>
-          <View
-            className="size-14 items-center justify-center rounded-2xl"
-            style={{ backgroundColor: colors.strong }}
-          >
+        <View className="flex-row items-center rounded-3xl p-4" style={{ backgroundColor: CARD_SURFACE }}>
+          <View className="size-14 items-center justify-center rounded-2xl bg-[#111111]">
             <Text className="text-[14px] font-extrabold text-white" numberOfLines={1}>
               {target.code.slice(0, 4)}
             </Text>
@@ -308,7 +297,7 @@ export function PlaceDetailsScreen({ target }: { target: PlaceDetailsTarget }) {
                 <Text
                   key={category}
                   className="mr-2 text-[13px] font-semibold"
-                  style={{ color: colors.strong }}
+                  style={{ color: CARD_ACCENT }}
                 >
                   {category}
                 </Text>
@@ -324,7 +313,7 @@ export function PlaceDetailsScreen({ target }: { target: PlaceDetailsTarget }) {
           </View>
         </View>
 
-        {target.description ? <AboutSection text={target.description} accent={colors.strong} /> : null}
+        {target.description ? <AboutSection text={target.description} /> : null}
 
         <BathroomSection code={target.code} />
 

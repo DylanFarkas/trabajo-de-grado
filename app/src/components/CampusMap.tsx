@@ -18,7 +18,7 @@ import {
   type MapTheme,
 } from "@/constants/mapTheme";
 import { useMapTheme } from "@/map-theme";
-import { catalogMapTone, categoriesForCode, placeInfo, type CampusCatalog, type PresetRoute } from "@/places";
+import { catalogMapTone, placeInfo, type CampusCatalog, type PresetRoute } from "@/places";
 import {
   destinationFromBuilding,
   findDestination,
@@ -2454,7 +2454,6 @@ export function CampusMap() {
       subtitle: info.subtitle,
       categories: info.categories,
       description: catalog?.places[info.placeId]?.description ?? null,
-      tone: categoriesForCode(info.placeId, catalog)[0]?.tone ?? null,
       official: info.official,
     });
   }, [catalog, openPlaceDetails]);
