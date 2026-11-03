@@ -1,4 +1,4 @@
-import { categoriesForCode, type CampusCatalog } from "@/places";
+import { categoriesForCode, officialStatus, type CampusCatalog } from "@/places";
 import {
   listSpaces as listSpaceRecords,
   nearestSpace as nearestSpaceRecord,
@@ -11,6 +11,7 @@ export type CatalogSpace = CampusSpace & {
   title: string;
   description: string | null;
   categories: string[];
+  official: boolean | null;
 };
 
 function withCatalog(space: CampusSpace, catalog?: CampusCatalog | null): CatalogSpace {
@@ -20,6 +21,7 @@ function withCatalog(space: CampusSpace, catalog?: CampusCatalog | null): Catalo
     title: remote?.name || space.nombre,
     description: remote?.description ?? null,
     categories: categoriesForCode(space.id, catalog).map((category) => category.name),
+    official: officialStatus(space.id, catalog),
   };
 }
 

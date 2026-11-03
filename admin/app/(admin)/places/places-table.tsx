@@ -3,12 +3,14 @@
 import { type ColumnDef } from "@tanstack/react-table";
 
 import { DataTable } from "@/components/catalog/data-table";
+import { StatusPill } from "@/components/catalog/status-pill";
 import { kindLabel } from "@/lib/catalog";
 
 export type PlaceRow = {
   id: string;
   name: string;
   kind: string;
+  official: boolean;
 };
 
 const columns: ColumnDef<PlaceRow, unknown>[] = [
@@ -27,6 +29,12 @@ const columns: ColumnDef<PlaceRow, unknown>[] = [
     header: "Tipo",
     filterFn: "equals",
     cell: ({ getValue }) => kindLabel(String(getValue())),
+  },
+  {
+    accessorKey: "official",
+    header: "Reconocimiento",
+    cell: ({ getValue }) =>
+      getValue() ? <StatusPill tone="ok">Oficial</StatusPill> : <StatusPill tone="muted">No oficial</StatusPill>,
   },
 ];
 

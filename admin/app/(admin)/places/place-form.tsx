@@ -13,7 +13,7 @@ export function PlaceForm({
   selected,
   lockKind = false,
 }: {
-  place: { id: string; name: string; kind: string; description: string | null };
+  place: { id: string; name: string; kind: string; description: string | null; official: boolean };
   categories: { id: string; name: string; tone: string }[];
   selected: Set<string>;
   /** Un espacio no se convierte en edificio: el punto vive en el GeoJSON. */
@@ -46,6 +46,15 @@ export function PlaceForm({
           Descripción
           <Textarea name="description" className="dark:bg-[#262626] border border-zinc-100 dark:border-[#141212]" defaultValue={place.description ?? ""} />
         </Field>
+        <label className="flex items-start gap-3 rounded-xl bg-zinc-50 px-3 py-3 text-sm dark:bg-[#262626]">
+          <input className="mt-0.5" type="checkbox" name="official" defaultChecked={place.official} />
+          <span>
+            <span className="font-medium">Sitio oficial</span>
+            <span className="mt-0.5 block text-zinc-500 dark:text-zinc-400">
+              La universidad reconoce este lugar. En la app, la estrella llena es un sitio oficial.
+            </span>
+          </span>
+        </label>
         <div className="mt-2 flex items-center gap-3">
           <Button size="lg" type="submit" className="cursor-pointer">
             Guardar ficha

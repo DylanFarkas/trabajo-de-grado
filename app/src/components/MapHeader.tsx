@@ -7,6 +7,7 @@ import {
   View,
 } from "react-native";
 
+import { OfficialMark } from "@/components/OfficialMark";
 import type { CampusDestination } from "@/destinations";
 
 type MapHeaderProps = {
@@ -99,7 +100,11 @@ export function MapHeader({
                 <Pressable
                   key={place.key}
                   accessibilityRole="button"
-                  accessibilityLabel={place.title}
+                  accessibilityLabel={
+                    place.official == null
+                      ? place.title
+                      : `${place.title}. ${place.official ? "Sitio oficial" : "Sitio no oficial"}`
+                  }
                   onPress={() => onSelectResult(place)}
                   className="px-2"
                 >
@@ -122,6 +127,7 @@ export function MapHeader({
                           {place.categories[0] ?? "Campus"}
                         </Text>
                       </View>
+                      <OfficialMark official={place.official} className="ml-2 shrink-0" />
                     </View>
                   )}
                 </Pressable>

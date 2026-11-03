@@ -3,10 +3,10 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { supabase } from "@/supabase";
 import type { CampusCatalog, CatalogTone, CategoryRecord, PlaceRecord, PresetRoute } from "@/places";
 
-const STORAGE_KEY = "campus-catalog-v2";
+const STORAGE_KEY = "campus-catalog-v3";
 const TONES = new Set<CatalogTone>(["food", "sport", "library", "culture", "academic"]);
 
-type PlaceRow = { id: string; name: string; description: string | null };
+type PlaceRow = { id: string; name: string; description: string | null; official: boolean };
 type CategoryRow = { id: string; name: string; tone: string; sort_order: number };
 type AssignmentRow = { place_id: string; category_id: string };
 type RouteRow = { id: number; name: string; description: string | null; image_url: string | null };
@@ -32,7 +32,7 @@ export async function refreshCatalog(): Promise<CampusCatalog | null> {
   if (!supabase) return null;
 
   const [placesResult, categoriesResult, assignmentsResult, routesResult, stopsResult] = await Promise.all([
-    supabase.from("places").select("id, name, description"),
+    supabase.from("places").select("id, name, description, official"),
     supabase.from("categories").select("id, name, tone, sort_order").eq("active", true),
     supabase.from("place_categories").select("place_id, category_id"),
     supabase.from("routes").select("id, name, description, image_url").eq("published", true).order("name"),
@@ -57,7 +57,7 @@ export async function refreshCatalog(): Promise<CampusCatalog | null> {
 
   const places: Record<string, PlaceRecord> = {};
   for (const row of (placesResult.data ?? []) as PlaceRow[]) {
-    places[row.id] = { name: row.name, description: row.description };
+    places[row.id] = { name: row.name, description: row.description, official: row.official };
   }
 
   const categories: Record<string, CategoryRecord> = {};

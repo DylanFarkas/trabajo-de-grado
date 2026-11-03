@@ -17,7 +17,7 @@ export default async function PlacePage({
   const { id } = await params;
   const supabase = await createClient();
   const [{ data: place }, { data: categories }, { data: assigned }, { data: info }] = await Promise.all([
-    supabase.from("places").select("id, name, kind, description").eq("id", id).maybeSingle(),
+    supabase.from("places").select("id, name, kind, description, official").eq("id", id).maybeSingle(),
     supabase.from("categories").select("id, name, tone, active").eq("active", true).order("sort_order"),
     supabase.from("place_categories").select("category_id").eq("place_id", id),
     supabase

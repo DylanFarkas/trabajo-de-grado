@@ -2455,6 +2455,7 @@ export function CampusMap() {
       categories: info.categories,
       description: catalog?.places[info.placeId]?.description ?? null,
       tone: categoriesForCode(info.placeId, catalog)[0]?.tone ?? null,
+      official: info.official,
     });
   }, [catalog, openPlaceDetails]);
 
@@ -3196,6 +3197,7 @@ export function CampusMap() {
         code: selected.destination.placeId,
         categories: selected.destination.categories,
         detail: bathroomSummary(selected.destination.placeId) ?? selected.destination.detail,
+        official: selected.destination.official,
       }
     : null;
   const lastPlacePreview = useRef(placePreview);

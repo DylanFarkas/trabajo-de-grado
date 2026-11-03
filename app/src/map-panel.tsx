@@ -19,6 +19,8 @@ export type PlaceDetailsTarget = {
   categories: string[];
   description: string | null;
   tone: CatalogTone | null;
+  /** null si el catálogo aún no cargó. */
+  official: boolean | null;
 };
 
 type MapPanelContextValue = {

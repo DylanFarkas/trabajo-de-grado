@@ -13,6 +13,7 @@ import {
   type BathroomAudienceCount,
 } from "@/bathrooms";
 import { ContributionComposer } from "@/components/ContributionComposer";
+import { OfficialMark } from "@/components/OfficialMark";
 import { fetchPublishedInfo, formatDate, submitInfo, type PublishedInfo } from "@/contributions";
 import { useMapPanel, type PlaceDetailsTarget } from "@/map-panel";
 import type { CatalogTone } from "@/places";
@@ -301,6 +302,7 @@ export function PlaceDetailsScreen({ target }: { target: PlaceDetailsTarget }) {
             <Text className="text-[19px] font-extrabold leading-6 tracking-tight text-[#111111]" numberOfLines={2}>
               {target.title}
             </Text>
+            <OfficialMark official={target.official} className="mt-1.5" />
             <View className="mt-1.5 flex-row flex-wrap items-center">
               {target.categories.map((category) => (
                 <Text

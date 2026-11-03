@@ -42,6 +42,7 @@ async function writePlaceFicha(formData: FormData, kind: "building" | "space") {
   const id = String(formData.get("id") ?? "");
   const name = String(formData.get("name") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
+  const official = formData.get("official") === "on";
   if (!id || !name) {
     throw new Error("La ficha necesita código y nombre.");
   }
@@ -52,6 +53,7 @@ async function writePlaceFicha(formData: FormData, kind: "building" | "space") {
       name,
       kind,
       description: description || null,
+      official,
     })
     .eq("id", id);
   if (error) throw new Error(error.message);

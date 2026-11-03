@@ -21,6 +21,8 @@ export type CampusDestination = {
   placeId: string | null;
   categories: string[];
   detail: string | null;
+  /** null si el catálogo aún no cargó. */
+  official: boolean | null;
   point: LatLng;
   reachable: boolean;
   building: BuildingProperties | null;
@@ -51,6 +53,7 @@ function fromPlace(place: CampusPlace): CampusDestination {
     placeId: place.code,
     categories: place.categories,
     detail: place.detail,
+    official: place.official,
     point: place.point,
     reachable: true,
     building: place.building,
@@ -72,6 +75,7 @@ function fromSpace(space: CatalogSpace): CampusDestination {
     placeId: space.id,
     categories: space.categories.length > 0 ? space.categories : [kindLabel],
     detail: space.notas,
+    official: space.official,
     point: spacePoint(space.id) ?? space.coordinate,
     reachable: space.reachable,
     building: null,
@@ -170,6 +174,7 @@ export function destinationFromBuilding(
     placeId: info.code,
     categories: info.categories,
     detail: info.detail,
+    official: info.official,
     point: fallback,
     reachable: true,
     building,

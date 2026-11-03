@@ -24,6 +24,8 @@ export type PlaceInfo = {
   code: string | null;
   categories: string[];
   detail: string | null;
+  /** null si el catálogo aún no cargó. false si no hay ficha. */
+  official: boolean | null;
 };
 
 export type CatalogTone = "food" | "sport" | "library" | "culture" | "academic";
@@ -31,6 +33,7 @@ export type CatalogTone = "food" | "sport" | "library" | "culture" | "academic";
 export type PlaceRecord = {
   name: string;
   description: string | null;
+  official: boolean;
 };
 
 export type CategoryRecord = {
@@ -56,6 +59,17 @@ export type CampusCatalog = {
 };
 
 const MAP_TONES = new Set<CatalogTone>(["food", "sport", "library", "culture"]);
+
+/** null si el catálogo no cargó. false si el id no tiene ficha. */
+export function officialStatus(
+  id: string | null,
+  catalog: CampusCatalog | null | undefined,
+): boolean | null {
+  if (!catalog) return null;
+  if (!id) return false;
+  const row = catalog.places[id];
+  return row ? row.official : false;
+}
 
 export function categoriesForCode(
   code: string | null,
@@ -102,6 +116,7 @@ export function placeInfo(
       code: null,
       categories: [],
       detail: null,
+      official: null,
     };
   }
 
@@ -132,7 +147,7 @@ export function placeInfo(
   // const detail = `${floors} piso${floors === 1 ? "" : "s"} · ~${Math.round(floors * METERS_PER_FLOOR)} m`;
   const detail = null;
 
-  return { title, subtitle, code, categories, detail };
+  return { title, subtitle, code, categories, detail, official: officialStatus(code, catalog) };
 }
 
 function averageRing(ring: GeoJsonPosition[]): LatLng | null {

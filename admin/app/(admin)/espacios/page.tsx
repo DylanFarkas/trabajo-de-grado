@@ -7,7 +7,7 @@ export default async function EspaciosPage() {
   const supabase = await createClient();
   const { data: spaces, error } = await supabase
     .from("places")
-    .select("id, name")
+    .select("id, name, official")
     .eq("kind", "space")
     .order("id");
 

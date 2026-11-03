@@ -1,6 +1,7 @@
 import { Pressable, Text, View } from "react-native";
 
 import { Icon } from "@/components/Icon";
+import { OfficialMark } from "@/components/OfficialMark";
 import type { RouteSlot } from "@/components/RouteSheet";
 import { SnapSheet } from "@/components/SnapSheet";
 
@@ -10,6 +11,7 @@ export type PlacePreview = {
   code: string | null;
   categories: string[];
   detail: string | null;
+  official: boolean | null;
 };
 
 type ExploreSheetProps = {
@@ -60,6 +62,7 @@ export function ExploreSheet({
             <Text className="mt-0.5 font-sans text-[13px] text-[#8e8e93] dark:text-[#8b95a5]" numberOfLines={1}>
               {[place.subtitle, place.categories.join(" · ")].filter(Boolean).join(" · ") || "Campus"}
             </Text>
+            <OfficialMark official={place.official} className="mt-1" />
           </Pressable>
           <Pressable
             accessibilityRole="button"
